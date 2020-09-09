@@ -12,6 +12,21 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type task struct {
+	darkstatAddr string
+
+	mu     sync.Mutex
+	values []Metric
+}
+
+var cache task
+
+func InitTask(ctx context.Context, darkstatAddr string) {
+	cache = task{
+		darkstatAddr: darkstatAddr,
+	}
+}
+
 // Metric contains values needed for prometheus metrics
 type Metric struct {
 	Protocol  string // tcp/udp
@@ -22,21 +37,7 @@ type Metric struct {
 	Bandwidth float64
 }
 
-type task struct {
-	mu     *sync.Mutex
-	values []Metric
-}
-
-var cache *task
-
-func init() {
-	cache = &task{
-		mu:     &sync.Mutex{},
-		values: []Metric{},
-	}
-}
-
-// Get returns latest metrics
+// Get returns latest metrics in cache.values
 func Get() []Metric {
 	cache.mu.Lock()
 	darkstats := cache.values
@@ -45,16 +46,16 @@ func Get() []Metric {
 	return darkstats
 }
 
-// Collect wil collect metrics and fill cache.values with latest data
-func Collect(ctx context.Context, darkstatAddr string) error {
-	if darkstatAddr == "" {
-		return fmt.Errorf("darkstat address is empty")
+// Collect will collect darkstats metrics locally and fill cache.values with latest data
+func Collect(ctx context.Context) error {
+	if cache.darkstatAddr == "" {
+		return fmt.Errorf("Darkstat address is empty")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	b, err := prometheus.Scrape(darkstatAddr)
+	b, err := prometheus.Scrape(cache.darkstatAddr)
 	if err != nil {
 		return err
 	}

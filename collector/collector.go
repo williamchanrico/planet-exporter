@@ -35,7 +35,6 @@ type PlanetCollector struct {
 
 // Collector interface for new collectors to implement
 type Collector interface {
-	// Get new metrics and expose them via prometheus registry.
 	Update(ch chan<- prometheus.Metric) error
 }
 
@@ -50,7 +49,9 @@ func NewPlanetCollector() (*PlanetCollector, error) {
 		collectors[collectorName] = col
 	}
 
-	return &PlanetCollector{Collectors: collectors}, nil
+	return &PlanetCollector{
+		Collectors: collectors,
+	}, nil
 }
 
 // Describe implements prometheus.Collector interface.

@@ -1,0 +1,59 @@
+package task
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+)
+
+// CollectorTask contains our background collector tasks.
+// This is a collection of compute-expensive Collect tasks that are run in background
+// rather than triggering them on-the-fly on each scrape.
+type CollectorTask struct {
+	Tasks map[string]Task
+}
+
+// Task interface for new task to implement
+type Task interface {
+	Name() string
+	// Collect will trigger the task and update values in their cache
+	Collect(ctx context.Context) error
+
+	Get() interface{}
+}
+
+// NewCollectorTask returns new planet collector
+func NewCollectorTask(newTasks ...Task) (CollectorTask, error) {
+	tasks := make(map[string]Task)
+	for _, t := range newTasks {
+		tasks[t.Name()] = t
+	}
+
+	return CollectorTask{Tasks: tasks}, nil
+}
+
+// Collect will trigger all collector tasks in background
+func (c CollectorTask) Collect(ctx context.Context) error {
+	wg := sync.WaitGroup{}
+	wg.Add(len(c.Tasks))
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	for name, task := range c.Tasks {
+		go func(name string, task Task) {
+			err := task.Collect(ctx)
+			if err != nil {
+				log.Errorf("Task '%v' failed to collect data: %v", name, err)
+			}
+
+			wg.Done()
+		}(name, task)
+	}
+
+	wg.Wait()
+
+	return nil
+}

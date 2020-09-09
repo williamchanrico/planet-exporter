@@ -5,8 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"planet-exporter/cmd/internal"
+	"planet-exporter/cmd/planet-exporter/internal"
 	"planet-exporter/collector"
+	"planet-exporter/collector/task/darkstat"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -27,7 +28,6 @@ func main() {
 	// Collector tasks
 	flag.StringVar(&config.TaskInterval, "task-interval", "7s", "Interval between collection of expensive data into memory")
 	flag.StringVar(&config.DarkstatAddr, "darkstat-addr", "http://localhost:51666/metrics", "Darkstat target address")
-	flag.StringVar(&config.InventoryAddr, "inventory-addr", "http://172.21.44.249:18081/inventory.json", "Inventory target address")
 
 	flag.Parse()
 
@@ -51,7 +51,10 @@ func main() {
 
 	ctx := context.Background()
 
-	log.Info("Initialize main service")
+	log.Info("Initialize collector tasks")
+	darkstat.InitTask(ctx, config.DarkstatAddr)
+
+	log.Info("Initialize prometheus collector")
 	collector, err := collector.NewPlanetCollector()
 	if err != nil {
 		log.Fatalf("Failed to initialize planet collector: %v", err)

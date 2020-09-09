@@ -72,12 +72,13 @@ func (s Service) Run(ctx context.Context) error {
 	handler := http.NewServeMux()
 	handler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
-			<head><title>Node Exporter</title></head>
-			<body>
-			<h1>Node Exporter</h1>
-			<p><a href="/metrics">Metrics</a></p>
-			</body>
-			</html>`))
+				<head><title>Planet Exporter</title></head>
+				<body>
+				<h1>Planet Exporter</h1>
+				<p><a href="/metrics">Metrics</a></p>
+				</body>
+			</html>
+		`))
 	})
 	handler.Handle("/metrics", promhttp.HandlerFor(
 		prometheus.Gatherers{r},
@@ -114,7 +115,7 @@ func (s Service) Run(ctx context.Context) error {
 	return nil
 }
 
-// collect runs collector tasks that are expensive to compute on-the-fly
+// collect periodically runs all collector tasks that are expensive to compute on-the-fly
 func (s Service) collect(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -123,7 +124,7 @@ func (s Service) collect(ctx context.Context, interval time.Duration) {
 		select {
 		case <-ticker.C:
 			// Darkstat query
-			err := taskdarkstat.Collect(ctx, s.Config.DarkstatAddr)
+			err := taskdarkstat.Collect(ctx)
 			if err != nil {
 				log.Errorf("Darkstat collect failed: %v", err)
 			}
@@ -138,25 +139,3 @@ func (s Service) collect(ctx context.Context, interval time.Duration) {
 		}
 	}
 }
-
-// // runCollectors will trigger Metrics() from initialized exporters at a given interval
-// func (s Service) runCollectors(ctx context.Context) error {
-//     if s.Tasks == nil {
-//         log.Debugf("No crons was configured")
-//         return nil
-//     }
-
-//     ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-//     defer cancel()
-
-//     for _, task := range s.Tasks {
-//         log.Debugf("Collect from %v exporter", task.Name())
-
-//         if err := task.Run(); err != nil {
-//             log.Errorf("Failed to collect %v: %v", task.Name(), err)
-//             continue
-//         }
-//     }
-
-//     return nil
-// }
