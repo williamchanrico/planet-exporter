@@ -1,3 +1,17 @@
+// Copyright 2020 - williamchanrico@gmail.com
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package internal
 
 import (
@@ -9,8 +23,12 @@ import (
 	"syscall"
 	"time"
 
+	"net/http/pprof"
+
 	"planet-exporter/collector"
 	taskdarkstat "planet-exporter/collector/task/darkstat"
+	taskinventory "planet-exporter/collector/task/inventory"
+	tasksocketstat "planet-exporter/collector/task/socketstat"
 	"planet-exporter/server"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -25,13 +43,17 @@ type Config struct {
 	ListenAddress string
 	LogLevel      string
 
-	// Collector tasks config
-	// TaskInterval between each collection of some expensive data computation, in Duration format (e.g. "7s").
+	// TaskInterval between each collection of some expensive data computation
+	// in Duration format (e.g. "7s").
 	TaskInterval string
-	// DarkstatAddr url for darkstat metrics scrape
-	DarkstatAddr string
-	// InventoryAddr url for inventory hostgroup mapping table data
-	InventoryAddr string
+
+	TaskDarkstatEnabled bool
+	TaskDarkstatAddr    string // DarkstatAddr url for darkstat metrics scrape
+
+	TaskInventoryEnabled bool
+	TaskInventoryAddr    string // InventoryAddr url for inventory hostgroup mapping table data
+
+	TaskSocketstatEnabled bool
 }
 
 // Service contains main service dependency
@@ -55,7 +77,7 @@ func (s Service) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Run expensive task in background
+	// Run collector tasks in background
 	log.Infof("Set task ticker duration to %v", s.Config.TaskInterval)
 	interval, err := time.ParseDuration(s.Config.TaskInterval)
 	if err != nil {
@@ -86,6 +108,7 @@ func (s Service) Run(ctx context.Context) error {
 			ErrorHandling: promhttp.ContinueOnError,
 		},
 	))
+	handler.HandleFunc("/debug/pprof/", pprof.Index)
 	httpServer := server.New(handler)
 
 	// Capture signals and graceful exit mechanism
@@ -117,23 +140,53 @@ func (s Service) Run(ctx context.Context) error {
 
 // collect periodically runs all collector tasks that are expensive to compute on-the-fly
 func (s Service) collect(ctx context.Context, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	inventoryTicker := time.NewTicker(interval * 25)
+	defaultTicker := time.NewTicker(interval)
+	defer inventoryTicker.Stop()
+	defer defaultTicker.Stop()
+
+	log.Info("Initialize collector tasks")
+
+	log.Infof("Task Darkstat: %v", s.Config.TaskDarkstatEnabled)
+	taskdarkstat.InitTask(ctx, s.Config.TaskDarkstatEnabled, s.Config.TaskDarkstatAddr)
+
+	log.Infof("Task Inventory: %v", s.Config.TaskInventoryEnabled)
+	taskinventory.InitTask(ctx, s.Config.TaskInventoryEnabled, s.Config.TaskInventoryAddr)
+
+	log.Infof("Task Socketstat: %v", s.Config.TaskSocketstatEnabled)
+	tasksocketstat.InitTask(ctx, s.Config.TaskSocketstatEnabled)
+
+	fInventory := func() {
+		err := taskinventory.Collect(ctx)
+		if err != nil {
+			log.Errorf("Inventory collect failed: %v", err)
+		}
+	}
+	fDefault := func() {
+		err := taskdarkstat.Collect(ctx)
+		if err != nil {
+			log.Errorf("Darkstat collect failed: %v", err)
+		}
+		err = tasksocketstat.Collect(ctx)
+		if err != nil {
+			log.Errorf("Socketstat collect failed: %v", err)
+		}
+	}
+
+	// Trigger once
+	fInventory()
+	fDefault()
 
 	for {
 		select {
-		case <-ticker.C:
-			// Darkstat query
-			err := taskdarkstat.Collect(ctx)
-			if err != nil {
-				log.Errorf("Darkstat collect failed: %v", err)
-			}
+		case <-inventoryTicker.C:
+			log.Debugf("Start inventory collect tick")
+			fInventory()
 
-			// Inventory query
-			// err = taskinventory.Collect(ctx, s.Config.InventoryAddr)
-			// if err != nil {
-			//     log.Errorf("Inventory collect failed: %v", err)
-			// }
+		case <-defaultTicker.C:
+			log.Debugf("Start default collect tick")
+			fDefault()
+
 		case <-ctx.Done():
 			return
 		}

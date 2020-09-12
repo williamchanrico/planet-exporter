@@ -1,8 +1,25 @@
+// Copyright 2020 - williamchanrico@gmail.com
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package darkstat
 
 import (
 	"context"
 	"fmt"
+	"net"
+	"planet-exporter/collector/task/inventory"
+	"planet-exporter/pkg/network"
 	"planet-exporter/pkg/prometheus"
 	"strconv"
 	"sync"
@@ -13,78 +30,130 @@ import (
 )
 
 type task struct {
+	enabled      bool
 	darkstatAddr string
+	hosts        []Metric
 
-	mu     sync.Mutex
-	values []Metric
+	mu sync.Mutex
 }
 
-var cache task
+var once sync.Once
+var singleton task
 
-func InitTask(ctx context.Context, darkstatAddr string) {
-	cache = task{
-		darkstatAddr: darkstatAddr,
+func init() {
+	singleton = task{
+		enabled: false,
+		hosts:   []Metric{},
+		mu:      sync.Mutex{},
 	}
+}
+
+func InitTask(ctx context.Context, enabled bool, darkstatAddr string) {
+	once.Do(func() {
+		singleton.enabled = enabled
+		singleton.darkstatAddr = darkstatAddr
+	})
 }
 
 // Metric contains values needed for prometheus metrics
 type Metric struct {
-	Protocol  string // tcp/udp
-	Name      string // e.g. hostgroup
-	Domain    string // e.g. consul domain
-	Port      string
 	Direction string // in or out
+	Hostgroup string // e.g. hostgroup
+	IPAddr    string
+	Domain    string // e.g. consul domain
 	Bandwidth float64
 }
 
-// Get returns latest metrics in cache.values
+// Get returns latest metrics in singleton
 func Get() []Metric {
-	cache.mu.Lock()
-	darkstats := cache.values
-	cache.mu.Unlock()
+	singleton.mu.Lock()
+	hosts := singleton.hosts
+	singleton.mu.Unlock()
 
-	return darkstats
+	return hosts
 }
 
-// Collect will collect darkstats metrics locally and fill cache.values with latest data
+// Collect will process darkstats metrics locally and fill singleton with latest data
 func Collect(ctx context.Context) error {
-	if cache.darkstatAddr == "" {
+	if !singleton.enabled {
+		return nil
+	}
+
+	if singleton.darkstatAddr == "" {
 		return fmt.Errorf("Darkstat address is empty")
 	}
+
+	startTime := time.Now()
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	b, err := prometheus.Scrape(cache.darkstatAddr)
+	inventoryHosts := inventory.Get()
+
+	localAddr, err := network.DefaultLocalAddr()
 	if err != nil {
 		return err
 	}
 
-	var metrics []Metric
-	for _, v := range b {
-		if v.Name == "hostprotoport_bytes_total" {
-			for _, m := range v.Metrics {
-				metric := m.(prom2json.Metric)
-				val, err := strconv.ParseFloat(metric.Value, 64)
-				if err != nil {
-					log.Errorf("Failed to parse 'hostprotoport_bytes_total' value: %v", err)
-					continue
-				}
-				metrics = append(metrics, Metric{
-					Protocol:  metric.Labels["proto"],
-					Name:      "",
-					Domain:    "",
-					Port:      metric.Labels["port"],
-					Direction: metric.Labels["dir"],
-					Bandwidth: val,
-				})
-			}
+	// Scrape darkstat prometheus endpoint for host_bytes_total
+	var darkstatHostBytesTotal *prom2json.Family
+	darkstatScrape, err := prometheus.Scrape(singleton.darkstatAddr)
+	if err != nil {
+		return err
+	}
+	for _, v := range darkstatScrape {
+		if v.Name == "host_bytes_total" {
+			darkstatHostBytesTotal = v
+			break
 		}
 	}
+	if darkstatHostBytesTotal == nil {
+		return fmt.Errorf("Metric host_bytes_total doesn't exist")
+	}
 
-	cache.mu.Lock()
-	cache.values = metrics
-	cache.mu.Unlock()
+	// Extract relevant data out of host_bytes_total
+	var hosts []Metric
+	for _, m := range darkstatHostBytesTotal.Metrics {
+		metric := m.(prom2json.Metric)
 
+		ip := net.ParseIP(metric.Labels["ip"])
+
+		// Skip its own IP as we don't need it
+		if ip.Equal(localAddr) {
+			continue
+		}
+
+		inventoryHostInfo := inventoryHosts[metric.Labels["ip"]]
+
+		bandwidth, err := strconv.ParseFloat(metric.Value, 64)
+		if err != nil {
+			log.Errorf("Failed to parse 'host_bytes_total' value: %v", err)
+			continue
+		}
+
+		direction := ""
+		// Reversed from netfilter perspective
+		switch metric.Labels["dir"] {
+		case "out":
+			direction = "ingress"
+		case "in":
+			direction = "egress"
+		}
+
+		hosts = append(hosts, Metric{
+			Hostgroup: inventoryHostInfo.Hostgroup,
+			Domain:    inventoryHostInfo.ConsulDomain,
+			IPAddr:    metric.Labels["ip"],
+			Direction: direction,
+			Bandwidth: bandwidth,
+		})
+	}
+
+	singleton.mu.Lock()
+	singleton.hosts = hosts
+	singleton.mu.Unlock()
+
+	log.Debugf("taskdarkstat.Collect retrieved %v downstreams metrics", len(hosts))
+	log.Debugf("taskdarkstat.Collect process took %v", time.Now().Sub(startTime))
 	return nil
 }

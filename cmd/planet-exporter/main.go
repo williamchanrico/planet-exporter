@@ -1,3 +1,17 @@
+// Copyright 2020 - williamchanrico@gmail.com
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
@@ -5,9 +19,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
 	"planet-exporter/cmd/planet-exporter/internal"
 	"planet-exporter/collector"
-	"planet-exporter/collector/task/darkstat"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -27,7 +41,14 @@ func main() {
 
 	// Collector tasks
 	flag.StringVar(&config.TaskInterval, "task-interval", "7s", "Interval between collection of expensive data into memory")
-	flag.StringVar(&config.DarkstatAddr, "darkstat-addr", "http://localhost:51666/metrics", "Darkstat target address")
+
+	flag.BoolVar(&config.TaskSocketstatEnabled, "task-socketstat-enabled", true, "Enable socketstat collector task")
+
+	flag.BoolVar(&config.TaskDarkstatEnabled, "task-darkstat-enabled", false, "Enable darkstat collector task")
+	flag.StringVar(&config.TaskDarkstatAddr, "task-darkstat-addr", "", "Darkstat target address")
+
+	flag.BoolVar(&config.TaskInventoryEnabled, "task-inventory-enabled", false, "Enable inventory collector task")
+	flag.StringVar(&config.TaskInventoryAddr, "task-inventory-addr", "", "Darkstat target address")
 
 	flag.Parse()
 
@@ -50,9 +71,6 @@ func main() {
 	log.Infof("Initialize log with level %v", config.LogLevel)
 
 	ctx := context.Background()
-
-	log.Info("Initialize collector tasks")
-	darkstat.InitTask(ctx, config.DarkstatAddr)
 
 	log.Info("Initialize prometheus collector")
 	collector, err := collector.NewPlanetCollector()
