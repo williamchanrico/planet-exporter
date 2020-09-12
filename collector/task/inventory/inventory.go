@@ -53,9 +53,9 @@ func InitTask(ctx context.Context, enabled bool, inventoryAddr string) {
 
 // Host contains inventory data
 type Host struct {
-	ConsulDomain string `json:"consul_domain"`
-	Hostgroup    string `json:"hostgroup"`
-	IPAddress    string `json:"ip_address"`
+	Domain    string `json:"domain"`
+	Hostgroup string `json:"hostgroup"`
+	IPAddress string `json:"ip_address"`
 }
 
 // Get returns latest metrics in cache.values

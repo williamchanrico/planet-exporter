@@ -115,7 +115,7 @@ func Collect(ctx context.Context) error {
 
 		var localAddr, localHostgroup, remoteAddr, remoteHostgroup string
 		if localHostInfo, ok := inventoryHosts[conn.LocalIP]; ok {
-			localAddr = localHostInfo.ConsulDomain
+			localAddr = localHostInfo.Domain
 			localHostgroup = localHostInfo.Hostgroup
 
 		}
@@ -123,7 +123,7 @@ func Collect(ctx context.Context) error {
 			localAddr = conn.LocalIP
 		}
 		if remoteHostInfo, ok := inventoryHosts[conn.RemoteIP]; ok {
-			remoteAddr = remoteHostInfo.ConsulDomain
+			remoteAddr = remoteHostInfo.Domain
 			remoteHostgroup = remoteHostInfo.Hostgroup
 
 		}

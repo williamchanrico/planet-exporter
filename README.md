@@ -19,12 +19,12 @@ URL should contain an array of json objects like:
 [
   {
     "ip_address": "10.1.2.3",
-    "consul_domain": "xyz.service.consul",
+    "domain": "xyz.service.consul",
     "hostgroup": "xyz"
   },
   {
     "ip_address": "10.2.3.4",
-    "consul_domain": "debugapp.service.consul",
+    "domain": "debugapp.service.consul",
     "hostgroup": "debugapp"
   }
 ]

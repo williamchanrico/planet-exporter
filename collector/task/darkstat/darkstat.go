@@ -142,7 +142,7 @@ func Collect(ctx context.Context) error {
 
 		hosts = append(hosts, Metric{
 			Hostgroup: inventoryHostInfo.Hostgroup,
-			Domain:    inventoryHostInfo.ConsulDomain,
+			Domain:    inventoryHostInfo.Domain,
 			IPAddr:    metric.Labels["ip"],
 			Direction: direction,
 			Bandwidth: bandwidth,
