@@ -32,8 +32,8 @@ import (
 type task struct {
 	enabled      bool
 	darkstatAddr string
-	hosts        []Metric
 
+	hosts        []Metric
 	mu sync.Mutex
 }
 
