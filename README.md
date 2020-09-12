@@ -128,6 +128,8 @@ Older Go version should be fine.
 
 Pull requests for new features, bug fixes, and suggestions are welcome!
 
+## Goreleaser
+
 ## License
 
 [Apache License 2.0](https://github.com/williamchanrico/planet-exporter/blob/master/LICENSE)
