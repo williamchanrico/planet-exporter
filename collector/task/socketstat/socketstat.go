@@ -26,10 +26,10 @@ import (
 )
 
 type task struct {
+	enabled bool
+
 	upstreams   []Metric
 	downstreams []Metric
-
-	enabled bool
 	mu      sync.Mutex
 }
 
