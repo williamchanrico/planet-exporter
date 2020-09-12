@@ -42,16 +42,20 @@ Simple discovery space-ship for your ~~infrastructure~~ planetary ecosystem acro
 
 Measure an environment's potential to maintain ~~services~~ life.
 
+### Structures
+
 * The `task/*` packages are the crew that does expensive task behind the scene and prepare the data for `collector` package.
 * The `collector` package calls one/more `task/*` packages if it needs expensive metrics instead of preparing them on-the-fly.
 
-#### Collector Tasks
+### Collector Tasks
 
 #### Inventory
 
 Query inventory data to map IP into `hostgroup` (an identifier based on ansible convention) and `domain`.
 
-URL should contain an array of json objects like:
+Without this task enabled, those hostgroup and domain fields will be left empty.
+
+The flag `--task-inventory-addr` should contain an http url to an array of json objects:
 
 ```json
 [
@@ -92,17 +96,15 @@ planet_downstream{local_address="debugapp.service.consul",local_hostgroup="debug
 planet_downstream{local_address="debugapp.service.consul",local_hostgroup="debugapp",port="22",protocol="tcp",remote_address="192.168.1.2",remote_hostgroup=""} 1
 ```
 
-##### Darkstat
+#### Darkstat
 
 [Darkstat](https://unix4lyfe.org/darkstat/) captures network traffic, calculates statistics about usage, and serves reports over HTTP.
 
-Data from darkstat can be leveraged for network dependencies capture.
-
-That means we'll have to install darkstat along with planet-exporter.
-
 Though there's no port detection from darkstat to determine remote/local port for each traffic direction, the bandwidth information can still be useful.
 
-Example parsed metrics from darkstat when enabled:
+NOTE: this means we'll have to install darkstat along with planet-exporter.
+
+Example parsed metrics from darkstat when enabled (plus inventory task for `remote_domain` and `remote_hostgroup`):
 
 ```
 # HELP planet_traffic_bytes_total Total network traffic with peers
@@ -119,6 +121,8 @@ planet_traffic_bytes_total{direction="ingress",remote_domain="debugapp.service.c
 $ go version
 go version go1.15 linux/amd64
 ```
+
+Older Go version should be fine.
 
 ## Contributing
 
