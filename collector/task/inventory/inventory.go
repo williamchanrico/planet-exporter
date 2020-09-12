@@ -26,9 +26,9 @@ import (
 )
 
 type task struct {
+	enabled bool
 	inventoryAddr string
 
-	enabled bool
 	mu      sync.Mutex
 	values  map[string]Host
 }
