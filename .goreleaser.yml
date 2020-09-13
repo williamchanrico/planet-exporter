@@ -19,7 +19,6 @@ builds:
       -s -w
       -X main.version=v{{.Version}}
       -X github.com/prometheus/common/version.Version=v{{.Version}}
-      -X github.com/prometheus/common/version.Branch={{.Branch}}
 
     # List of combinations of GOOS + GOARCH + GOARM to ignore.
     # Default is empty.
