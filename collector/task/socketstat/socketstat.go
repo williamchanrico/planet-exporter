@@ -78,7 +78,7 @@ func Collect(ctx context.Context) error {
 
 	startTime := time.Now()
 
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	// We use listening ports to determine whether a connection

@@ -41,7 +41,7 @@ func PeerConnections(ctx context.Context) ([]uint32, []ConnectionTuple, error) {
 		return nil, nil, err
 	}
 
-	listens := filterListeningPorts(ctx, allConns)
+	listens := filterListeningPorts(allConns)
 
 	peerTuples := []ConnectionTuple{}
 	for _, conn := range allConns {
@@ -83,7 +83,7 @@ func DefaultLocalAddr() (net.IP, error) {
 }
 
 // listeningPorts returns local ports in LISTENING state
-func filterListeningPorts(ctx context.Context, conns []psutilnet.ConnectionStat) []uint32 {
+func filterListeningPorts(conns []psutilnet.ConnectionStat) []uint32 {
 	listenPorts := []uint32{}
 	for _, conn := range conns {
 		if conn.Status == "LISTEN" {
