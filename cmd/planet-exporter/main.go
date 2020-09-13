@@ -37,6 +37,8 @@ func main() {
 	// Main
 	flag.StringVar(&config.ListenAddress, "listen-address", "0.0.0.0:19100", "Address to which exporter will bind its HTTP interface")
 	flag.StringVar(&config.LogLevel, "log-level", "info", "Log level")
+	flag.BoolVar(&config.LogDisableTimestamp, "log-disable-timestamp", false, "Disable timestamp on logger")
+	flag.BoolVar(&config.LogDisableColors, "log-disable-colors", false, "Disable colors on logger")
 	flag.BoolVar(&showVersionAndExit, "version", false, "Show version and exit")
 
 	// Collector tasks
@@ -58,8 +60,9 @@ func main() {
 	}
 
 	log.SetFormatter(&log.TextFormatter{
-		DisableColors: true,
-		FullTimestamp: true,
+		DisableColors:    config.LogDisableColors,
+		DisableTimestamp: config.LogDisableTimestamp,
+		FullTimestamp:    true,
 	})
 	logLevel, err := log.ParseLevel(config.LogLevel)
 	if err != nil {

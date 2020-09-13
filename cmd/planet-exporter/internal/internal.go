@@ -40,8 +40,10 @@ import (
 // Config contains main service config options
 type Config struct {
 	// Main config
-	ListenAddress string
-	LogLevel      string
+	ListenAddress       string
+	LogLevel            string
+	LogDisableTimestamp bool
+	LogDisableColors    bool
 
 	// TaskInterval between each collection of some expensive data computation
 	// in Duration format (e.g. "7s").
