@@ -1,6 +1,7 @@
 # .goreleaser.yml
 #
 project_name: planet-exporter
+dist: bin
 
 builds:
   - # Path to main.go file or main package.
