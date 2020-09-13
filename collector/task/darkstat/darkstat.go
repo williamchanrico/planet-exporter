@@ -18,12 +18,13 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"planet-exporter/collector/task/inventory"
-	"planet-exporter/pkg/network"
-	"planet-exporter/pkg/prometheus"
 	"strconv"
 	"sync"
 	"time"
+
+	"planet-exporter/collector/task/inventory"
+	"planet-exporter/pkg/network"
+	"planet-exporter/pkg/prometheus"
 
 	"github.com/prometheus/prom2json"
 	log "github.com/sirupsen/logrus"
@@ -33,8 +34,8 @@ type task struct {
 	enabled      bool
 	darkstatAddr string
 
-	hosts        []Metric
-	mu sync.Mutex
+	hosts []Metric
+	mu    sync.Mutex
 }
 
 var once sync.Once

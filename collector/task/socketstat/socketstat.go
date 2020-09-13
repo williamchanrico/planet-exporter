@@ -17,10 +17,11 @@ package socketstat
 import (
 	"context"
 	"fmt"
-	"planet-exporter/collector/task/inventory"
-	"planet-exporter/pkg/network"
 	"sync"
 	"time"
+
+	"planet-exporter/collector/task/inventory"
+	"planet-exporter/pkg/network"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -30,7 +31,7 @@ type task struct {
 
 	upstreams   []Metric
 	downstreams []Metric
-	mu      sync.Mutex
+	mu          sync.Mutex
 }
 
 var once sync.Once
