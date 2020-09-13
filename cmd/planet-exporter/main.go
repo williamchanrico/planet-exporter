@@ -58,8 +58,8 @@ func main() {
 	}
 
 	log.SetFormatter(&log.TextFormatter{
-		ForceColors:   true,
-		FullTimestamp: false,
+		DisableColors: true,
+		FullTimestamp: true,
 	})
 	logLevel, err := log.ParseLevel(config.LogLevel)
 	if err != nil {

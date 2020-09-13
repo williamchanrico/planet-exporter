@@ -22,6 +22,9 @@ import (
 	"github.com/prometheus/prom2json"
 )
 
+// TODO: Complete package
+// e.g. abstract prom2json data structures
+
 func Scrape(url string) ([]*prom2json.Family, error) {
 	var err error
 

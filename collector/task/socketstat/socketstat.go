@@ -83,7 +83,7 @@ func Collect(ctx context.Context) error {
 
 	// We use listening ports to determine whether a connection
 	// is an ingress connection
-	uListenPorts, peerConns, err := network.ServerConnectionsStatus(ctx)
+	uListenPorts, peerConns, err := network.PeerConnections(ctx)
 	if err != nil {
 		return err
 	}

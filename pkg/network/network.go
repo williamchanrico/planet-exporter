@@ -30,9 +30,9 @@ type ConnectionTuple struct {
 	Protocol   string
 }
 
-// ServerConnectionsStatus returns LISTENING ports and tuples that are either in ESTABLISHED or TIME_WAIT state
+// PeerConnections returns LISTENING ports and tuples that are either in ESTABLISHED or TIME_WAIT state
 // Limited to 4096 connections per running process
-func ServerConnectionsStatus(ctx context.Context) ([]uint32, []ConnectionTuple, error) {
+func PeerConnections(ctx context.Context) ([]uint32, []ConnectionTuple, error) {
 	// "01": "ESTABLISHED",
 	// "06": "TIME_WAIT",
 	// "0A": "LISTEN",
