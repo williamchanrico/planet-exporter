@@ -3,7 +3,8 @@
 project_name: planet-exporter
 
 builds:
-  - # Path to main.go file or main package.
+  -
+    # Path to main.go file or main package.
     # Default is `.`.
     main: ./cmd/planet-exporter/main.go
 
@@ -17,7 +18,7 @@ builds:
     ldflags: |
       -s -w
       -X main.version=v{{.Version}}
-      -X github.com/prometheus/common/version.Version={{.Version}}
+      -X github.com/prometheus/common/version.Version=v{{.Version}}
       -X github.com/prometheus/common/version.Revision={{.Revision}}
       -X github.com/prometheus/common/version.Branch={{.Branch}}
       -X github.com/prometheus/common/version.BuildDate={{date "20060102-15:04:05"}}
@@ -50,3 +51,53 @@ release:
   # You can change the name of the GitHub release.
   # Default is `{{.Tag}}`
   name_template: "{{.ProjectName}}-v{{.Version}}"
+
+# .goreleaser.yml
+archives:
+  -
+    # Builds reference which build instances should be archived in this archive.
+    builds:
+      - default
+
+    # Archive name template.
+    # Defaults:
+    # - if format is `tar.gz`, `tar.xz`, `gz` or `zip`:
+    #   - `{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}`
+    # - if format is `binary`:
+    #   - `{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}`
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+    # Replacements for GOOS and GOARCH in the archive name.
+    # Keys should be valid GOOSs or GOARCHs.
+    # Values are the respective replacements.
+    # Default is empty.
+    replacements:
+      amd64: 64-bit
+      386: 32-bit
+      darwin: macOS
+      linux: Tux
+
+    # Set to true, if you want all files in the archive to be in a single directory.
+    # If set to true and you extract the archive 'goreleaser_Linux_arm64.tar.gz',
+    # you get a folder 'goreleaser_Linux_arm64'.
+    # If set to false, all files are extracted separately.
+    # You can also set it to a custom folder name (templating is supported).
+    # Default is false.
+    wrap_in_directory: false
+
+    # Archive format. Valid options are `tar.gz`, `tar.xz`, `gz`, `zip` and `binary`.
+    # If format is `binary`, no archives are created and the binaries are instead
+    # uploaded directly.
+    # Default is `tar.gz`.
+    format: tar.gz
+
+    # Additional files/template/globs you want to add to the archive.
+    # Defaults are any files matching `LICENCE*`, `LICENSE*`,
+    # `README*` and `CHANGELOG*` (case-insensitive).
+    files:
+      - LICENSE.txt
+      - README_{{.Os}}.md
+      - CHANGELOG.md
+      - docs/*
+      - design/*.png
+      - templates/**/*
