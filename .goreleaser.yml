@@ -3,8 +3,7 @@
 project_name: planet-exporter
 
 builds:
-  -
-    # Path to main.go file or main package.
+  - # Path to main.go file or main package.
     # Default is `.`.
     main: ./cmd/planet-exporter/main.go
 
@@ -19,7 +18,6 @@ builds:
       -s -w
       -X main.version=v{{.Version}}
       -X github.com/prometheus/common/version.Version=v{{.Version}}
-      -X github.com/prometheus/common/version.Revision={{.Revision}}
       -X github.com/prometheus/common/version.Branch={{.Branch}}
 
     # List of combinations of GOOS + GOARCH + GOARM to ignore.
@@ -53,8 +51,7 @@ release:
 
 # .goreleaser.yml
 archives:
-  -
-    # Builds reference which build instances should be archived in this archive.
+  - # Builds reference which build instances should be archived in this archive.
     builds:
       - default
 
