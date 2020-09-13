@@ -21,7 +21,6 @@ builds:
       -X github.com/prometheus/common/version.Version=v{{.Version}}
       -X github.com/prometheus/common/version.Revision={{.Revision}}
       -X github.com/prometheus/common/version.Branch={{.Branch}}
-      -X github.com/prometheus/common/version.BuildDate={{date "20060102-15:04:05"}}
 
     # List of combinations of GOOS + GOARCH + GOARM to ignore.
     # Default is empty.
