@@ -41,12 +41,12 @@ func NewNetworkDependencyCollector() (Collector, error) {
 		upstream: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "upstream"),
 			"Upstream dependency of this machine",
-			[]string{"local_hostgroup", "remote_hostgroup", "local_address", "remote_address", "port", "protocol"}, nil,
+			[]string{"local_hostgroup", "remote_hostgroup", "local_address", "remote_address", "port", "protocol", "process_name"}, nil,
 		),
 		downstream: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "downstream"),
 			"Downstream dependency of this machine",
-			[]string{"local_hostgroup", "remote_hostgroup", "local_address", "remote_address", "port", "protocol"}, nil,
+			[]string{"local_hostgroup", "remote_hostgroup", "local_address", "remote_address", "port", "protocol", "process_name"}, nil,
 		),
 	}, nil
 }
@@ -61,11 +61,11 @@ func (c networkDependencyCollector) Update(ch chan<- prometheus.Metric) error {
 	}
 	for _, m := range upstreams {
 		ch <- prometheus.MustNewConstMetric(c.upstream, prometheus.GaugeValue, 1,
-			m.LocalHostgroup, m.RemoteHostgroup, m.LocalAddress, m.RemoteAddress, m.Port, m.Protocol)
+			m.LocalHostgroup, m.RemoteHostgroup, m.LocalAddress, m.RemoteAddress, m.Port, m.Protocol, m.ProcessName)
 	}
 	for _, m := range downstreams {
 		ch <- prometheus.MustNewConstMetric(c.downstream, prometheus.GaugeValue, 1,
-			m.LocalHostgroup, m.RemoteHostgroup, m.LocalAddress, m.RemoteAddress, m.Port, m.Protocol)
+			m.LocalHostgroup, m.RemoteHostgroup, m.LocalAddress, m.RemoteAddress, m.Port, m.Protocol, m.ProcessName)
 	}
 
 	return nil

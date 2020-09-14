@@ -48,7 +48,7 @@ go-cross-build: ## Build the app for multiple platforms
 	@mkdir -p $(BIN_DIRECTORY) || true
 	@# darwin
 	@for arch in "amd64" "386"; do \
-		CGO_ENABLED=1 GOOS=darwin GOARCH=$${arch} make go-build; \
+		CGO_ENABLED=0 GOOS=darwin GOARCH=$${arch} make go-build; \
 		sleep 0.5; \
 		cd $(BIN_DIRECTORY); \
 		tar czf $(APP_NAME)_$(APP_VERSION)_darwin_$${arch}.tar.gz $(APP_NAME); \
@@ -58,7 +58,7 @@ go-cross-build: ## Build the app for multiple platforms
 .PHONY: go-build-linux
 go-build-linux: ## Build the app for linux platforms exclude: "arm64" CGO errors
 	@for arch in "amd64" "386"; do \
-		CGO_ENABLED=1 GOOS=linux GOARCH=$${arch} make go-build; \
+		CGO_ENABLED=0 GOOS=linux GOARCH=$${arch} make go-build; \
 		sleep 0.5; \
 		cd $(BIN_DIRECTORY); \
 		tar czf $(APP_NAME)_$(APP_VERSION)_linux_$${arch}.tar.gz $(APP_NAME); \

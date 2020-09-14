@@ -13,6 +13,11 @@ builds:
     # Default is the name of the project directory.
     binary: planet-exporter
 
+    # Custom environment variables to be set during the builds.
+    # Default is empty.
+    env:
+      - CGO_ENABLED=0
+
     # Custom ldflags templates.
     # Default is `-s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser`.
     ldflags: |
@@ -53,8 +58,7 @@ release:
 
 # .goreleaser.yml
 archives:
-  -
-    # Archive name template.
+  - # Archive name template.
     # Defaults:
     # - if format is `tar.gz`, `tar.xz`, `gz` or `zip`:
     #   - `{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}`

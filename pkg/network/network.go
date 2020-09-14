@@ -19,20 +19,34 @@ import (
 	"net"
 	"syscall"
 
+	"planet-exporter/pkg/process"
+
 	psutilnet "github.com/shirou/gopsutil/net"
 )
 
-type ConnectionTuple struct {
-	LocalIP    string
-	LocalPort  uint32
-	RemoteIP   string
-	RemotePort uint32
-	Protocol   string
+type Peer struct {
+	LocalIP     string
+	LocalPort   uint32
+	RemoteIP    string
+	RemotePort  uint32
+	Protocol    string
+	ProcessName string
 }
 
-// PeerConnections returns LISTENING ports and tuples that are either in ESTABLISHED or TIME_WAIT state
+type Server struct {
+	ProcessPid  int32
+	ProcessName string
+	Port        uint32
+}
+
+// ServerConnections returns LISTENING ports and peer connection tuples that are in ESTABLISHED or TIME_WAIT state
 // Limited to 4096 connections per running process
-func PeerConnections(ctx context.Context) ([]uint32, []ConnectionTuple, error) {
+func ServerConnections(ctx context.Context) ([]Server, []Peer, error) {
+	processTable, err := process.GetProcessTable(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// "01": "ESTABLISHED",
 	// "06": "TIME_WAIT",
 	// "0A": "LISTEN",
@@ -41,9 +55,20 @@ func PeerConnections(ctx context.Context) ([]uint32, []ConnectionTuple, error) {
 		return nil, nil, err
 	}
 
-	listens := filterListeningPorts(allConns)
+	// Get listening sockets
+	servers := []Server{}
+	for _, conn := range allConns {
+		if conn.Status == "LISTEN" {
+			servers = append(servers, Server{
+				ProcessName: processTable[int(conn.Pid)],
+				ProcessPid:  conn.Pid,
+				Port:        conn.Laddr.Port,
+			})
+		}
+	}
 
-	peerTuples := []ConnectionTuple{}
+	// Get peer connection sockets
+	peerTuples := []Peer{}
 	for _, conn := range allConns {
 		proto := ""
 		switch conn.Type {
@@ -56,17 +81,19 @@ func PeerConnections(ctx context.Context) ([]uint32, []ConnectionTuple, error) {
 		}
 		switch conn.Status {
 		case "TIME_WAIT", "ESTABLISHED":
-			peerTuples = append(peerTuples, ConnectionTuple{
-				LocalIP:    conn.Laddr.IP,
-				LocalPort:  conn.Laddr.Port,
-				RemoteIP:   conn.Raddr.IP,
-				RemotePort: conn.Raddr.Port,
-				Protocol:   proto,
+			processName := processTable[int(conn.Pid)]
+			peerTuples = append(peerTuples, Peer{
+				LocalIP:     conn.Laddr.IP,
+				LocalPort:   conn.Laddr.Port,
+				RemoteIP:    conn.Raddr.IP,
+				RemotePort:  conn.Raddr.Port,
+				Protocol:    proto,
+				ProcessName: processName,
 			})
 		}
 	}
 
-	return listens, peerTuples, nil
+	return servers, peerTuples, nil
 }
 
 // DefaultLocalAddr returns default local IP address
@@ -80,16 +107,4 @@ func DefaultLocalAddr() (net.IP, error) {
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 
 	return localAddr.IP, nil
-}
-
-// listeningPorts returns local ports in LISTENING state
-func filterListeningPorts(conns []psutilnet.ConnectionStat) []uint32 {
-	listenPorts := []uint32{}
-	for _, conn := range conns {
-		if conn.Status == "LISTEN" {
-			listenPorts = append(listenPorts, conn.Laddr.Port)
-		}
-	}
-
-	return listenPorts
 }
