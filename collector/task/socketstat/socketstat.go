@@ -104,46 +104,43 @@ func Collect(ctx context.Context) error {
 
 	var upstreams []Metric
 	var downstreams []Metric
-	for _, conn := range peers {
-		// localPort := fmt.Sprint(conn.LocalPort)
-		remotePort := fmt.Sprint(conn.RemotePort)
+	for _, peerConn := range peers {
 
-		if conn.LocalIP == "127.0.0.1" {
-			conn.LocalIP = defaultLocalAddr.String()
+		if peerConn.LocalIP == "127.0.0.1" {
+			peerConn.LocalIP = defaultLocalAddr.String()
 		}
-		if conn.RemoteIP == "127.0.0.1" {
-			conn.RemoteIP = defaultLocalAddr.String()
+		if peerConn.RemoteIP == "127.0.0.1" {
+			peerConn.RemoteIP = defaultLocalAddr.String()
 		}
 
 		var localAddr, localHostgroup, remoteAddr, remoteHostgroup string
-		if localHostInfo, ok := inventoryHosts[conn.LocalIP]; ok {
+		if localHostInfo, ok := inventoryHosts[peerConn.LocalIP]; ok {
 			localAddr = localHostInfo.Domain
 			localHostgroup = localHostInfo.Hostgroup
-
 		}
 		if localAddr == "" {
-			localAddr = conn.LocalIP
+			localAddr = peerConn.LocalIP
 		}
-		if remoteHostInfo, ok := inventoryHosts[conn.RemoteIP]; ok {
+		if remoteHostInfo, ok := inventoryHosts[peerConn.RemoteIP]; ok {
 			remoteAddr = remoteHostInfo.Domain
 			remoteHostgroup = remoteHostInfo.Hostgroup
 
 		}
 		if remoteAddr == "" {
-			remoteAddr = conn.RemoteIP
+			remoteAddr = peerConn.RemoteIP
 		}
 
-		// If conn.localPort is one of the listening port, it's a downstream connection
-		if srv, listening := listeningServerPorts[conn.LocalPort]; listening {
-			existenceKey := fmt.Sprintf("down_%s_%s_%v_%s", remoteHostgroup, remoteAddr, conn.LocalPort, conn.Protocol)
+		// If peerConn.localPort is one of the listening port, it's a downstream connection
+		if srv, isListening := listeningServerPorts[peerConn.LocalPort]; isListening {
+			existenceKey := fmt.Sprintf("down_%s_%s_%v_%s", remoteHostgroup, remoteAddr, peerConn.LocalPort, peerConn.Protocol)
 
 			// Prevents duplicate entries
 			if _, ok := exists[existenceKey]; !ok {
 
 				// Usually it's from TIME_WAIT socket states that don't have Pids stored
 				// So we put whoever is holding that localPort instead
-				if conn.ProcessName == "" {
-					conn.ProcessName = srv.ProcessName
+				if peerConn.ProcessName == "" {
+					peerConn.ProcessName = srv.ProcessName
 				}
 
 				downstreams = append(downstreams, Metric{
@@ -151,14 +148,15 @@ func Collect(ctx context.Context) error {
 					RemoteHostgroup: remoteHostgroup,
 					LocalAddress:    localAddr,
 					RemoteAddress:   remoteAddr,
-					Port:            fmt.Sprint(conn.LocalPort),
-					Protocol:        conn.Protocol,
-					ProcessName:     conn.ProcessName,
+					Port:            fmt.Sprint(peerConn.LocalPort),
+					Protocol:        peerConn.Protocol,
+					ProcessName:     peerConn.ProcessName,
 				})
 				exists[existenceKey] = true
 			}
 		} else {
-			existenceKey := fmt.Sprintf("up_%s_%s_%s_%s", remoteHostgroup, remoteAddr, remotePort, conn.Protocol)
+			remotePort := fmt.Sprint(peerConn.RemotePort)
+			existenceKey := fmt.Sprintf("up_%s_%s_%s_%s", remoteHostgroup, remoteAddr, remotePort, peerConn.Protocol)
 
 			if _, ok := exists[existenceKey]; !ok {
 				upstreams = append(upstreams, Metric{
@@ -167,8 +165,8 @@ func Collect(ctx context.Context) error {
 					LocalAddress:    localAddr,
 					RemoteAddress:   remoteAddr,
 					Port:            remotePort,
-					Protocol:        conn.Protocol,
-					ProcessName:     conn.ProcessName,
+					Protocol:        peerConn.Protocol,
+					ProcessName:     peerConn.ProcessName,
 				})
 				exists[existenceKey] = true
 			}
