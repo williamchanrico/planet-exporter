@@ -22,9 +22,10 @@ import (
 )
 
 type networkDependencyCollector struct {
-	upstream   *prometheus.Desc
-	downstream *prometheus.Desc
-	traffic    *prometheus.Desc
+	serverProcesses *prometheus.Desc
+	upstream        *prometheus.Desc
+	downstream      *prometheus.Desc
+	traffic         *prometheus.Desc
 }
 
 func init() {
@@ -33,6 +34,11 @@ func init() {
 
 func NewNetworkDependencyCollector() (Collector, error) {
 	return &networkDependencyCollector{
+		serverProcesses: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "server_process"),
+			"Server process that are listening on network interfaces",
+			[]string{"bind", "process_name", "port"}, nil,
+		),
 		traffic: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "traffic_bytes_total"),
 			"Total network traffic with peers",
@@ -53,7 +59,7 @@ func NewNetworkDependencyCollector() (Collector, error) {
 
 func (c networkDependencyCollector) Update(ch chan<- prometheus.Metric) error {
 	traffic := darkstat.Get()
-	upstreams, downstreams := socketstat.Get()
+	serverProcesses, upstreams, downstreams := socketstat.Get()
 
 	for _, m := range traffic {
 		ch <- prometheus.MustNewConstMetric(c.traffic, prometheus.GaugeValue, m.Bandwidth,
@@ -66,6 +72,10 @@ func (c networkDependencyCollector) Update(ch chan<- prometheus.Metric) error {
 	for _, m := range downstreams {
 		ch <- prometheus.MustNewConstMetric(c.downstream, prometheus.GaugeValue, 1,
 			m.LocalHostgroup, m.RemoteHostgroup, m.LocalAddress, m.RemoteAddress, m.Port, m.Protocol, m.ProcessName)
+	}
+	for _, m := range serverProcesses {
+		ch <- prometheus.MustNewConstMetric(c.serverProcesses, prometheus.GaugeValue, 1,
+			m.Bind, m.Name, m.Port)
 	}
 
 	return nil

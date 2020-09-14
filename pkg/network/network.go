@@ -36,6 +36,7 @@ type Peer struct {
 type Server struct {
 	ProcessPid  int32
 	ProcessName string
+	Address     string
 	Port        uint32
 }
 
@@ -62,6 +63,7 @@ func ServerConnections(ctx context.Context) ([]Server, []Peer, error) {
 			servers = append(servers, Server{
 				ProcessName: processTable[int(conn.Pid)],
 				ProcessPid:  conn.Pid,
+				Address:     conn.Laddr.IP,
 				Port:        conn.Laddr.Port,
 			})
 		}

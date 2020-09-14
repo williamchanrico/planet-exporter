@@ -29,9 +29,10 @@ import (
 type task struct {
 	enabled bool
 
-	upstreams   []Metric
-	downstreams []Metric
-	mu          sync.Mutex
+	serverProcesses []Process
+	upstreams       []Connections
+	downstreams     []Connections
+	mu              sync.Mutex
 }
 
 var once sync.Once
@@ -39,10 +40,11 @@ var singleton task
 
 func init() {
 	singleton = task{
-		upstreams:   []Metric{},
-		downstreams: []Metric{},
-		enabled:     false,
-		mu:          sync.Mutex{},
+		serverProcesses: []Process{},
+		upstreams:       []Connections{},
+		downstreams:     []Connections{},
+		enabled:         false,
+		mu:              sync.Mutex{},
 	}
 }
 
@@ -50,8 +52,15 @@ func InitTask(ctx context.Context, enabled bool) {
 	singleton.enabled = enabled
 }
 
-// Metric contains values needed for prometheus metrics
-type Metric struct {
+// Process that binds on one or more network interfaces
+type Process struct {
+	Name string // e.g. "node_exporter"
+	Bind string // e.g. "0.0.0.0:9100"
+	Port string // e.g. "9100"
+}
+
+// Connections socket connection metrics
+type Connections struct {
 	LocalHostgroup  string
 	LocalAddress    string
 	RemoteHostgroup string
@@ -62,13 +71,14 @@ type Metric struct {
 }
 
 // Get returns latest metrics in singleton
-func Get() ([]Metric, []Metric) {
+func Get() ([]Process, []Connections, []Connections) {
 	singleton.mu.Lock()
 	up := singleton.upstreams
 	down := singleton.downstreams
+	serverProcesses := singleton.serverProcesses
 	singleton.mu.Unlock()
 
-	return up, down
+	return serverProcesses, up, down
 }
 
 // Collect will collect fill singleton with latest data
@@ -90,7 +100,7 @@ func Collect(ctx context.Context) error {
 	listeningServerPorts := make(map[uint32]network.Server)
 	for _, p := range servers {
 		listeningServerPorts[p.Port] = p
-		log.Debugf("Listening server ports: %v [process:%v]", p.Port, p.ProcessName)
+		log.Debugf("Server listening on: %v:%v [process:%v]", p.Address, p.Port, p.ProcessName)
 	}
 
 	inventoryHosts := inventory.Get()
@@ -102,8 +112,9 @@ func Collect(ctx context.Context) error {
 
 	exists := make(map[string]bool)
 
-	var upstreams []Metric
-	var downstreams []Metric
+	// Build upstreams and downstreams from every peers
+	var upstreams []Connections
+	var downstreams []Connections
 	for _, peerConn := range peers {
 
 		if peerConn.LocalIP == "127.0.0.1" {
@@ -143,7 +154,7 @@ func Collect(ctx context.Context) error {
 					peerConn.ProcessName = srv.ProcessName
 				}
 
-				downstreams = append(downstreams, Metric{
+				downstreams = append(downstreams, Connections{
 					LocalHostgroup:  localHostgroup,
 					RemoteHostgroup: remoteHostgroup,
 					LocalAddress:    localAddr,
@@ -159,7 +170,7 @@ func Collect(ctx context.Context) error {
 			existenceKey := fmt.Sprintf("up_%s_%s_%s_%s", remoteHostgroup, remoteAddr, remotePort, peerConn.Protocol)
 
 			if _, ok := exists[existenceKey]; !ok {
-				upstreams = append(upstreams, Metric{
+				upstreams = append(upstreams, Connections{
 					LocalHostgroup:  localHostgroup,
 					RemoteHostgroup: remoteHostgroup,
 					LocalAddress:    localAddr,
@@ -173,7 +184,18 @@ func Collect(ctx context.Context) error {
 		}
 	}
 
+	// Build serverProcesses from server LISTEN sockets
+	serverProcesses := []Process{}
+	for _, v := range servers {
+		serverProcesses = append(serverProcesses, Process{
+			Name: v.ProcessName,
+			Bind: fmt.Sprintf("%v:%v", v.Address, v.Port),
+			Port: fmt.Sprint(v.Port),
+		})
+	}
+
 	singleton.mu.Lock()
+	singleton.serverProcesses = serverProcesses
 	singleton.upstreams = upstreams
 	singleton.downstreams = downstreams
 	singleton.mu.Unlock()
