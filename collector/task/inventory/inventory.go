@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"planet-exporter/pkg/network"
 	"sync"
 	"time"
 
@@ -26,11 +27,11 @@ import (
 )
 
 type task struct {
-	enabled bool
+	enabled       bool
 	inventoryAddr string
 
-	mu      sync.Mutex
-	values  map[string]Host
+	mu     sync.Mutex
+	values map[string]Host
 }
 
 var once sync.Once
@@ -111,4 +112,21 @@ func Collect(ctx context.Context) error {
 	log.Debugf("taskinventory.Collect retrieved %v hosts", len(hosts))
 	log.Debugf("taskinventory.Collect process took %v", time.Now().Sub(startTime))
 	return nil
+}
+
+func GetLocalInventory() Host {
+	inv := Host{}
+	defaultLocalAddr, err := network.DefaultLocalAddr()
+	if err != nil {
+		return inv
+	}
+
+	hosts := Get()
+	if h, ok := hosts[defaultLocalAddr.String()]; ok {
+		inv.IPAddress = h.IPAddress
+		inv.Domain = h.Domain
+		inv.Hostgroup = h.Hostgroup
+	}
+
+	return inv
 }

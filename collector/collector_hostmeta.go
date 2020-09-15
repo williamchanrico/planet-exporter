@@ -16,6 +16,7 @@ package collector
 
 import (
 	"os"
+	"planet-exporter/collector/task/inventory"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -33,7 +34,7 @@ func NewHostmetaCollector() (Collector, error) {
 		hostname: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "hostname"),
 			"Hostname of the collected machine",
-			[]string{"hostname"}, nil,
+			[]string{"local_hostgroup", "hostname", "domain", "ip"}, nil,
 		),
 	}, nil
 }
@@ -44,7 +45,9 @@ func (c hostmetaCollector) Update(ch chan<- prometheus.Metric) error {
 		// Kernel is probably drunk
 		return err
 	}
+	localInventory := inventory.GetLocalInventory()
+
 	ch <- prometheus.MustNewConstMetric(c.hostname, prometheus.GaugeValue, 1,
-		hostname)
+		localInventory.Hostgroup, hostname, localInventory.Domain, localInventory.IPAddress)
 	return nil
 }

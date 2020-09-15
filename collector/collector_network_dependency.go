@@ -16,6 +16,7 @@ package collector
 
 import (
 	"planet-exporter/collector/task/darkstat"
+	"planet-exporter/collector/task/inventory"
 	"planet-exporter/collector/task/socketstat"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -37,12 +38,12 @@ func NewNetworkDependencyCollector() (Collector, error) {
 		serverProcesses: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "server_process"),
 			"Server process that are listening on network interfaces",
-			[]string{"bind", "process_name", "port"}, nil,
+			[]string{"local_hostgroup", "bind", "process_name", "port"}, nil,
 		),
 		traffic: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "traffic_bytes_total"),
 			"Total network traffic with peers",
-			[]string{"direction", "local_hostgroup", "remote_hostgroup", "remote_ip", "local_domain", "remote_domain"}, nil,
+			[]string{"local_hostgroup", "direction", "remote_hostgroup", "remote_ip", "local_domain", "remote_domain"}, nil,
 		),
 		upstream: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "upstream"),
@@ -60,10 +61,11 @@ func NewNetworkDependencyCollector() (Collector, error) {
 func (c networkDependencyCollector) Update(ch chan<- prometheus.Metric) error {
 	traffic := darkstat.Get()
 	serverProcesses, upstreams, downstreams := socketstat.Get()
+	localInventory := inventory.GetLocalInventory()
 
 	for _, m := range traffic {
 		ch <- prometheus.MustNewConstMetric(c.traffic, prometheus.GaugeValue, m.Bandwidth,
-			m.Direction, m.LocalHostgroup, m.RemoteHostgroup, m.RemoteIPAddr, m.LocalDomain, m.RemoteDomain)
+			m.LocalHostgroup, m.Direction, m.RemoteHostgroup, m.RemoteIPAddr, m.LocalDomain, m.RemoteDomain)
 	}
 	for _, m := range upstreams {
 		ch <- prometheus.MustNewConstMetric(c.upstream, prometheus.GaugeValue, 1,
@@ -75,7 +77,7 @@ func (c networkDependencyCollector) Update(ch chan<- prometheus.Metric) error {
 	}
 	for _, m := range serverProcesses {
 		ch <- prometheus.MustNewConstMetric(c.serverProcesses, prometheus.GaugeValue, 1,
-			m.Bind, m.Name, m.Port)
+			localInventory.Hostgroup, m.Bind, m.Name, m.Port)
 	}
 
 	return nil
