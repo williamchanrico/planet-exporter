@@ -18,6 +18,11 @@
     <img src="https://img.shields.io/badge/stability-experimental-orange.svg?style=flat-square"
       alt="API stability" />
   </a>
+  <!-- Relese -->
+  <a href="https://github.com/williamchanrico/planet-exporter/releases">
+    <img src="https://img.shields.io/github/release/williamchanrico/planet-exporter.svg?style=flat-square""
+      alt="Release" />
+  </a>
   <!-- Apache License -->
   <a href="https://opensource.org/licenses/Apache-2.0"><img
 	src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"
@@ -42,10 +47,62 @@ Simple discovery space-ship for your ~~infrastructure~~ planetary ecosystem acro
 
 Measure an environment's potential to maintain ~~services~~ life.
 
-### Structures
+### Packages Structure
 
 * The `task/*` packages are the crew that does expensive task behind the scene and prepare the data for `collector` package.
 * The `collector` package calls one/more `task/*` packages if it needs expensive metrics instead of preparing them on-the-fly.
+
+### Installation
+
+Grab a pre-built binary for your OS from the [Releases][release] page.
+
+### Configuration
+
+Flags:
+
+There's no required flags. It is configured with usable defaults.
+
+```
+Usage of planet-exporter:
+  -listen-address string
+    	Address to which exporter will bind its HTTP interface (default "0.0.0.0:19100")
+  -log-disable-colors
+    	Disable colors on logger
+  -log-disable-timestamp
+    	Disable timestamp on logger
+  -log-level string
+    	Log level (default "info")
+  -task-darkstat-addr string
+    	Darkstat target address
+  -task-darkstat-enabled
+    	Enable darkstat collector task
+  -task-interval string
+    	Interval between collection of expensive data into memory (default "7s")
+  -task-inventory-addr string
+    	Darkstat target address
+  -task-inventory-enabled
+    	Enable inventory collector task
+  -task-socketstat-enabled
+    	Enable socketstat collector task (default true)
+  -version
+    	Show version and exit
+```
+
+Running with minimum collector tasks (just the socketstat)
+
+```
+# planet-exporter
+```
+
+Running with inventory and darkstat (installed separately rev >= [e7e6652](https://www.unix4lyfe.org/gitweb/darkstat/commit/e7e6652113099e33930ab0f39630bf280e38f769))
+
+```
+# planet-exporter \
+	-task-inventory-enabled \
+	-task-inventory-addr http://link-to-your.net/inventory_hosts.json \
+	-task-darkstat-enabled \
+	-task-darkstat-addr http://localhost:51666/metrics
+```
 
 ### Collector Tasks
 
@@ -136,6 +193,11 @@ planet_traffic_bytes_total{direction="ingress",remote_domain="xyz.service.consul
 planet_traffic_bytes_total{direction="ingress",remote_domain="debugapp.service.consul",remote_hostgroup="debugapp",remote_ip="10.2.3.4"} 1.26014316e+08
 ```
 
+## Exporter Cost
+
+Planet exporter will consume CPU and Memory in proportion to the number
+of opened network file descriptors (opened sockets).
+
 ## Used Go Version
 
 ```
@@ -143,13 +205,11 @@ $ go version
 go version go1.15 linux/amd64
 ```
 
-Older Go version should be fine.
+> Older Go version should work fine.
 
 ## Contributing
 
 Pull requests for new features, bug fixes, and suggestions are welcome!
-
-## Goreleaser
 
 ## License
 
