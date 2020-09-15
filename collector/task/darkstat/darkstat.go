@@ -58,11 +58,13 @@ func InitTask(ctx context.Context, enabled bool, darkstatAddr string) {
 
 // Metric contains values needed for prometheus metrics
 type Metric struct {
-	Direction string // in or out
-	Hostgroup string // e.g. hostgroup
-	IPAddr    string
-	Domain    string // e.g. consul domain
-	Bandwidth float64
+	Direction       string // ingress or egress
+	LocalHostgroup  string // e.g. hostgroup
+	RemoteHostgroup string
+	RemoteIPAddr    string
+	LocalDomain     string // e.g. consul domain
+	RemoteDomain    string
+	Bandwidth       float64
 }
 
 // Get returns latest metrics in singleton
@@ -95,6 +97,15 @@ func Collect(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// To label source traffic that we need to build dependency graph
+	localHostgroup := localAddr.String()
+	localDomain := localAddr.String()
+	localInventory, ok := inventoryHosts[localAddr.String()]
+	if ok {
+		localHostgroup = localInventory.Hostgroup
+		localDomain = localInventory.Domain
+	}
+	log.Debugf("Local address don't exist in inventory: %v", localAddr.String())
 
 	// Scrape darkstat prometheus endpoint for host_bytes_total
 	var darkstatHostBytesTotal *prom2json.Family
@@ -142,11 +153,13 @@ func Collect(ctx context.Context) error {
 		}
 
 		hosts = append(hosts, Metric{
-			Hostgroup: inventoryHostInfo.Hostgroup,
-			Domain:    inventoryHostInfo.Domain,
-			IPAddr:    metric.Labels["ip"],
-			Direction: direction,
-			Bandwidth: bandwidth,
+			LocalHostgroup:  localHostgroup,
+			RemoteHostgroup: inventoryHostInfo.Hostgroup,
+			RemoteIPAddr:    metric.Labels["ip"],
+			LocalDomain:     localDomain,
+			RemoteDomain:    inventoryHostInfo.Domain,
+			Direction:       direction,
+			Bandwidth:       bandwidth,
 		})
 	}
 

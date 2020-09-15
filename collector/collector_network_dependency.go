@@ -42,7 +42,7 @@ func NewNetworkDependencyCollector() (Collector, error) {
 		traffic: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "traffic_bytes_total"),
 			"Total network traffic with peers",
-			[]string{"direction", "remote_hostgroup", "remote_ip", "remote_domain"}, nil,
+			[]string{"direction", "local_hostgroup", "remote_hostgroup", "remote_ip", "local_domain", "remote_domain"}, nil,
 		),
 		upstream: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "upstream"),
@@ -63,7 +63,7 @@ func (c networkDependencyCollector) Update(ch chan<- prometheus.Metric) error {
 
 	for _, m := range traffic {
 		ch <- prometheus.MustNewConstMetric(c.traffic, prometheus.GaugeValue, m.Bandwidth,
-			m.Direction, m.Hostgroup, m.IPAddr, m.Domain)
+			m.Direction, m.LocalHostgroup, m.RemoteHostgroup, m.RemoteIPAddr, m.LocalDomain, m.RemoteDomain)
 	}
 	for _, m := range upstreams {
 		ch <- prometheus.MustNewConstMetric(c.upstream, prometheus.GaugeValue, 1,
