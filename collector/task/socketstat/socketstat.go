@@ -167,7 +167,8 @@ func Collect(ctx context.Context) error {
 				})
 				exists[existenceKey] = true
 			}
-		} else {
+
+		} else if remoteAddr != "localhost" {
 			remotePort := fmt.Sprint(peerConn.RemotePort)
 			existenceKey := fmt.Sprintf("up_%s_%s_%s_%s", remoteHostgroup, remoteAddr, remotePort, peerConn.Protocol)
 
