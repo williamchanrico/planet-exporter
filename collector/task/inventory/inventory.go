@@ -122,11 +122,14 @@ func GetLocalInventory() Host {
 	}
 
 	hosts := Get()
+
+	singleton.mu.Lock()
 	if h, ok := hosts[defaultLocalAddr.String()]; ok {
 		inv.IPAddress = h.IPAddress
 		inv.Domain = h.Domain
 		inv.Hostgroup = h.Hostgroup
 	}
+	singleton.mu.Unlock()
 
 	return inv
 }
