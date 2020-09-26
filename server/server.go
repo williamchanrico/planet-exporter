@@ -16,9 +16,10 @@ package server
 
 import (
 	"context"
-	"net"
 	"net/http"
 	"time"
+
+	reuse "github.com/libp2p/go-reuseport"
 )
 
 // Server struct
@@ -42,7 +43,7 @@ func (s *Server) Serve(addr string) error {
 		Handler:      s.handler,
 	}
 
-	listener, err := net.Listen("tcp4", addr)
+	listener, err := reuse.Listen("tcp4", addr)
 	if err != nil {
 		return err
 	}
