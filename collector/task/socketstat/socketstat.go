@@ -17,15 +17,15 @@ package socketstat
 import (
 	"context"
 	"fmt"
-	"sync"
-	"time"
-
 	"planet-exporter/collector/task/inventory"
 	"planet-exporter/pkg/network"
+	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
+// task that queries local socket info and aggregates them into usable planet metrics
 type task struct {
 	enabled bool
 
@@ -35,8 +35,10 @@ type task struct {
 	mu              sync.Mutex
 }
 
-var once sync.Once
-var singleton task
+var (
+	once      sync.Once
+	singleton task
+)
 
 func init() {
 	singleton = task{
@@ -48,6 +50,7 @@ func init() {
 	}
 }
 
+// InitTask initial states
 func InitTask(ctx context.Context, enabled bool) {
 	singleton.enabled = enabled
 }
@@ -70,7 +73,7 @@ type Connections struct {
 	ProcessName     string
 }
 
-// Get returns latest metrics in singleton
+// Get returns latest metrics from singleton
 func Get() ([]Process, []Connections, []Connections) {
 	singleton.mu.Lock()
 	up := singleton.upstreams

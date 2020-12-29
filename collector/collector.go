@@ -26,6 +26,8 @@ import (
 const namespace = "planet"
 
 var (
+	// collectorFactories contains all registered collectors via registerCollector function
+	// All registered collectors will then be used by the PlanetCollector service
 	collectorFactories = make(map[string]func() (Collector, error))
 
 	scrapeDurationDesc = prometheus.NewDesc(
@@ -42,57 +44,21 @@ var (
 	)
 )
 
-// PlanetCollector contains our planetary collectors
-type PlanetCollector struct {
-	Collectors map[string]Collector
-}
-
-// Collector interface for new collectors to implement
+// Collector interface used by all planets wanting to contribute metrics
 type Collector interface {
 	Update(ch chan<- prometheus.Metric) error
 }
 
-// NewPlanetCollector returns new planet collector
-func NewPlanetCollector() (*PlanetCollector, error) {
-	collectors := make(map[string]Collector)
-	for collectorName, factory := range collectorFactories {
-		col, err := factory()
-		if err != nil {
-			return nil, err
-		}
-		collectors[collectorName] = col
-	}
-
-	return &PlanetCollector{
-		Collectors: collectors,
-	}, nil
+// registerCollector adds new collector to the collectorFactories
+// Every registered collectors must implement the Collector interface
+func registerCollector(name string, factory func() (Collector, error)) {
+	collectorFactories[name] = factory
 }
 
-// Describe implements prometheus.Collector interface.
-func (n PlanetCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- scrapeDurationDesc
-	ch <- scrapeSuccessDesc
-}
+// ErrNoData returned when collector found no data
+var ErrNoData = errors.New("A collector did not find any data")
 
-// Collect impelements prometheus.Collector interface
-func (p PlanetCollector) Collect(ch chan<- prometheus.Metric) {
-	wg := sync.WaitGroup{}
-	wg.Add(len(p.Collectors))
-
-	for name, collector := range p.Collectors {
-		go func(name string, collector Collector) {
-			collectorExec(name, collector, ch)
-
-			wg.Done()
-		}(name, collector)
-	}
-
-	wg.Wait()
-}
-
-// ErrNoData returned when collector found no data to collect
-var ErrNoData = errors.New("Collector did not find any data")
-
+// collectorExec is a wrapper that executes a planet's implementation of Collector interface
 func collectorExec(name string, c Collector, ch chan<- prometheus.Metric) {
 	var success float64
 
@@ -115,7 +81,48 @@ func collectorExec(name string, c Collector, ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(scrapeSuccessDesc, prometheus.GaugeValue, success, name)
 }
 
-// registerCollector adds the collector to collectorFactories
-func registerCollector(name string, factory func() (Collector, error)) {
-	collectorFactories[name] = factory
+// PlanetCollector is the service running our planetary collections
+// It retrieves all the collectors registered by registerCollector function
+type PlanetCollector struct {
+	Collectors map[string]Collector
+}
+
+// NewPlanetCollector service
+// Saves current registered collectors, which means future registered collectors will not be used.
+func NewPlanetCollector() (*PlanetCollector, error) {
+	collectors := make(map[string]Collector)
+	for collectorName, factory := range collectorFactories {
+		col, err := factory()
+		if err != nil {
+			return nil, err
+		}
+		collectors[collectorName] = col
+	}
+
+	return &PlanetCollector{
+		Collectors: collectors,
+	}, nil
+}
+
+// Describe implements prometheus.Collector interface.
+func (p PlanetCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- scrapeDurationDesc
+	ch <- scrapeSuccessDesc
+}
+
+// Collect impelements prometheus.Collector interface
+// It collects metrics from saved Collectors by executing all of them together in their own goroutine
+func (p PlanetCollector) Collect(ch chan<- prometheus.Metric) {
+	wg := sync.WaitGroup{}
+	wg.Add(len(p.Collectors))
+
+	for name, collector := range p.Collectors {
+		go func(name string, collector Collector) {
+			collectorExec(name, collector, ch)
+
+			wg.Done()
+		}(name, collector)
+	}
+
+	wg.Wait()
 }

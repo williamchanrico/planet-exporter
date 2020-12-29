@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// networkDependencyCollector on network dependency metrics
 type networkDependencyCollector struct {
 	serverProcesses *prometheus.Desc
 	upstream        *prometheus.Desc
@@ -33,6 +34,8 @@ func init() {
 	registerCollector("network_dependency", NewNetworkDependencyCollector)
 }
 
+// NewNetworkDependencyCollector service
+// All metrics have current host's Hostgroup identified in the 'local_hostgroup' label
 func NewNetworkDependencyCollector() (Collector, error) {
 	return &networkDependencyCollector{
 		serverProcesses: prometheus.NewDesc(
@@ -58,6 +61,7 @@ func NewNetworkDependencyCollector() (Collector, error) {
 	}, nil
 }
 
+// Update implements the Collector interface
 func (c networkDependencyCollector) Update(ch chan<- prometheus.Metric) error {
 	traffic := darkstat.Get()
 	serverProcesses, upstreams, downstreams := socketstat.Get()

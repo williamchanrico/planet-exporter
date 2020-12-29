@@ -21,6 +21,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// hostmetaCollector on host related metadata
 type hostmetaCollector struct {
 	hostname *prometheus.Desc
 }
@@ -29,6 +30,7 @@ func init() {
 	registerCollector("hostmeta", NewHostmetaCollector)
 }
 
+// NewHostmetaCollector service
 func NewHostmetaCollector() (Collector, error) {
 	return &hostmetaCollector{
 		hostname: prometheus.NewDesc(
@@ -39,6 +41,7 @@ func NewHostmetaCollector() (Collector, error) {
 	}, nil
 }
 
+// Update implements Collector interface
 func (c hostmetaCollector) Update(ch chan<- prometheus.Metric) error {
 	hostname, err := os.Hostname()
 	if err != nil {

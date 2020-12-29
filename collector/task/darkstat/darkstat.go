@@ -18,18 +18,18 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strconv"
-	"sync"
-	"time"
-
 	"planet-exporter/collector/task/inventory"
 	"planet-exporter/pkg/network"
 	"planet-exporter/pkg/prometheus"
+	"strconv"
+	"sync"
+	"time"
 
 	"github.com/prometheus/prom2json"
 	log "github.com/sirupsen/logrus"
 )
 
+// task that queries darkstat metrics and aggregates them into usable planet metrics
 type task struct {
 	enabled      bool
 	darkstatAddr string
@@ -38,8 +38,10 @@ type task struct {
 	mu    sync.Mutex
 }
 
-var once sync.Once
-var singleton task
+var (
+	once      sync.Once
+	singleton task
+)
 
 func init() {
 	singleton = task{
@@ -49,6 +51,7 @@ func init() {
 	}
 }
 
+// InitTask initial states
 func InitTask(ctx context.Context, enabled bool, darkstatAddr string) {
 	once.Do(func() {
 		singleton.enabled = enabled
@@ -56,7 +59,7 @@ func InitTask(ctx context.Context, enabled bool, darkstatAddr string) {
 	})
 }
 
-// Metric contains values needed for prometheus metrics
+// Metric contains values needed for planet metrics
 type Metric struct {
 	Direction       string // ingress or egress
 	LocalHostgroup  string // e.g. hostgroup
@@ -67,7 +70,7 @@ type Metric struct {
 	Bandwidth       float64
 }
 
-// Get returns latest metrics in singleton
+// Get returns latest metrics from singleton
 func Get() []Metric {
 	singleton.mu.Lock()
 	hosts := singleton.hosts

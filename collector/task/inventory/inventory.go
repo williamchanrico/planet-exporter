@@ -26,6 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// task that queries inventory data and aggregates them into usable mapping table
 type task struct {
 	enabled       bool
 	inventoryAddr string
@@ -34,8 +35,10 @@ type task struct {
 	values map[string]Host
 }
 
-var once sync.Once
-var singleton task
+var (
+	once      sync.Once
+	singleton task
+)
 
 func init() {
 	singleton = task{
@@ -45,6 +48,7 @@ func init() {
 	}
 }
 
+// InitTask initial states
 func InitTask(ctx context.Context, enabled bool, inventoryAddr string) {
 	once.Do(func() {
 		singleton.enabled = enabled
@@ -59,7 +63,7 @@ type Host struct {
 	IPAddress string `json:"ip_address"`
 }
 
-// Get returns latest metrics in cache.values
+// Get returns latest metrics from cache.values
 func Get() map[string]Host {
 	singleton.mu.Lock()
 	hosts := singleton.values
@@ -114,6 +118,7 @@ func Collect(ctx context.Context) error {
 	return nil
 }
 
+// GetLocalInventory returns current Host's inventory entry
 func GetLocalInventory() Host {
 	inv := Host{}
 	defaultLocalAddr, err := network.DefaultLocalAddr()
