@@ -198,6 +198,21 @@ planet_traffic_bytes_total{direction="ingress",remote_domain="debugapp.service.c
 Planet exporter will consume CPU and Memory in proportion to the number
 of opened network file descriptors (opened sockets).
 
+## Additional Binaries
+
+### Planet Federator
+
+Since planet-exporter stores raw data in Prometheus, a dashboard querying those data can get expensive.
+A tested traffic bandwidth query for service with ~300 remote upstreams/downstreams took about 9s to return 1 hour data range.
+It gets longer when querying 12h or days range of data.
+
+Planet Federator runs a Cron that queries Planet Exporter's traffic bandwidth data from Prometheus, pre-process, and
+stores them in a time-series database for clean and efficient dashboard queries.
+
+TSDB support:
+- [x] InfluxDB
+- [ ] Prometheus (if InfluxDB turns out to be a bad choice)
+
 ## Used Go Version
 
 ```

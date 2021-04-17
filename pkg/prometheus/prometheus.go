@@ -25,6 +25,7 @@ import (
 // TODO: Complete package
 // e.g. abstract prom2json data structures
 
+// Scrape metrics from a prometheus HTTP endpoint
 func Scrape(url string) ([]*prom2json.Family, error) {
 	var err error
 
