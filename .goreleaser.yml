@@ -38,7 +38,8 @@ builds:
       - goarm: mips64
         gomips: hardfloat
 
-  - main: ./cmd/planet-federator/main.go
+  - id: planet-federator
+    main: ./cmd/planet-federator/main.go
     binary: planet-federator
     env:
       - CGO_ENABLED=0
