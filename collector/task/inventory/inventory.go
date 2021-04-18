@@ -18,6 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"planet-exporter/pkg/network"
 	"sync"
@@ -111,6 +113,10 @@ func Collect(ctx context.Context) error {
 	err = decoder.Decode(&metrics)
 	if err != nil {
 		return err
+	}
+	if decoder.More() {
+		bytesCopied, _ := io.Copy(ioutil.Discard, response.Body)
+		log.Warnf("Unexpected remaining data (%v Bytes) in inventory response: %v", bytesCopied, singleton.inventoryAddr)
 	}
 
 	hosts := make(map[string]Host)
