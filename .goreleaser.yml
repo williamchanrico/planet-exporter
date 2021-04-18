@@ -114,3 +114,11 @@ snapshot:
   #
   # Default is `{{ .Tag }}-SNAPSHOT-{{.ShortCommit}}`.
   name_template: "{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}"
+
+checksum:
+  name_template: "{{ .ProjectName }}_v{{ .Version }}_checksums.txt"
+
+  # Algorithm to be used.
+  # Accepted options are sha256, sha512, sha1, crc32, md5, sha224 and sha384.
+  # Default is sha256.
+  algorithm: sha256
