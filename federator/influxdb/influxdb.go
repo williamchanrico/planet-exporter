@@ -58,11 +58,14 @@ const (
 
 // AddTrafficBandwidthData adds a service's ingress bytes data point
 // Example InfluxQL:
-//   SELECT SUM("bandwidth_bps")
-//   FROM "ingress"
+//   SELECT
+//     SUM("bandwidth_bps")
+//   FROM
+//     "ingress"
 //   WHERE
 //     ("service" = '$service') AND $timeFilter
-//   GROUP BY time($__interval), "service", "remote_service", "remote_address"
+//   GROUP BY
+//     time($__interval), "service", "remote_service", "remote_address"
 //
 func (b Backend) AddTrafficBandwidthData(ctx context.Context, trafficBandwidth federator.TrafficBandwidth, t time.Time) error {
 	measurement := ""

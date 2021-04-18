@@ -216,6 +216,19 @@ TSDB supports:
 - [ ] Prometheus (if InfluxDB turns out to be a bad choice)
 - [ ] BigQuery
 
+#### Example InfluQL
+
+```sql
+SELECT
+	SUM("bandwidth_bps")
+FROM
+	"ingress"
+WHERE
+	("service" = '$service') AND $timeFilter
+GROUP BY
+	time($__interval), "service", "remote_service", "remote_address"
+```
+
 ```sh
 $ planet-federator \
 	-prometheus-addr "http://127.0.0.1:9090" \
