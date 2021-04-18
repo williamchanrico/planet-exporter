@@ -54,7 +54,7 @@ Measure an environment's potential to maintain ~~services~~ life.
 
 ### Installation
 
-Grab a pre-built binary for your OS from the [Releases][release] page.
+Grab a pre-built binary for your OS from the [Releases](https://github.com/williamchanrico/planet-exporter/releases/latest) page.
 
 ### Configuration
 
@@ -202,16 +202,26 @@ of opened network file descriptors (opened sockets).
 
 ### Planet Federator
 
-Since planet-exporter stores raw data in Prometheus, a dashboard querying those data can get expensive.
-A tested traffic bandwidth query for service with ~300 remote upstreams/downstreams took about 9s to return 1 hour data range.
+Since planet-exporter stores raw data in Prometheus, dashboard queries on those data can get expensive.
+A tested traffic bandwidth query for a crowded service with ~300 upstreams/downstreams took about `9s` to return 1h data range.
 It gets longer when querying 12h or days range of data.
 
 Planet Federator runs a Cron that queries Planet Exporter's traffic bandwidth data from Prometheus, pre-process, and
 stores them in a time-series database for clean and efficient dashboard queries.
 
-TSDB support:
+Latest tested query on pre-processed data from InfluxDB for a crowded service that took `8.494s`, now takes `2.259s`.
+
+TSDB supports:
 - [x] InfluxDB
 - [ ] Prometheus (if InfluxDB turns out to be a bad choice)
+- [ ] BigQuery
+
+```sh
+$ planet-federator \
+	-prometheus-addr "http://127.0.0.1:9090" \
+	-influxdb-addr "http://127.0.0.1:8086" \
+	-influxdb-bucket "mothership" # Works as database name if you're using InfluxDB v1.8 and earlier
+```
 
 ## Used Go Version
 

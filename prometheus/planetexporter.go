@@ -42,9 +42,9 @@ type PlanetExporterTrafficBandwidth struct {
 func (s Service) QueryPlanetExporterTrafficBandwidth(ctx context.Context, startTime time.Time, endTime time.Time) ([]PlanetExporterTrafficBandwidth, error) {
 	// query data as bits per second and only those higher than 1Kbps to reduce noise
 	qr := fmt.Sprintf(`
-			sum(
-				sum(
-					irate(planet_traffic_bytes_total{local_hostgroup!="", remote_ip!~"%v", remote_domain!~"%v", remote_hostgroup!=""}[30s])
+			sum (
+				sum (
+					irate (planet_traffic_bytes_total{local_hostgroup!="", remote_ip!~"%v", remote_domain!~"%v", remote_hostgroup!=""}[30s])
 				) by (direction, local_hostgroup, local_domain, remote_hostgroup, remote_domain, instance) * 8
 			)
 			by (direction, local_hostgroup, local_domain, remote_hostgroup, remote_domain) > 1000`,
@@ -54,7 +54,7 @@ func (s Service) QueryPlanetExporterTrafficBandwidth(ctx context.Context, startT
 		return nil, err
 	}
 
-	trafficPeers := []PlanetExporterTrafficBandwidth{}
+	trafficBandwidthData := []PlanetExporterTrafficBandwidth{}
 	for _, v := range qrTrafficPeers.(model.Matrix) {
 		localHostgroup, ok := v.Metric["local_hostgroup"]
 		if !ok {
@@ -68,7 +68,7 @@ func (s Service) QueryPlanetExporterTrafficBandwidth(ctx context.Context, startT
 
 		bw := s.getMaxValueFromSamplePairs(v.Values)
 
-		trafficPeers = append(trafficPeers, PlanetExporterTrafficBandwidth{
+		trafficBandwidthData = append(trafficBandwidthData, PlanetExporterTrafficBandwidth{
 			Direction:              string(direction),
 			LocalHostgroup:         string(localHostgroup),
 			RemoteHostgroup:        string(remoteHostgroup),
@@ -78,5 +78,5 @@ func (s Service) QueryPlanetExporterTrafficBandwidth(ctx context.Context, startT
 		})
 	}
 
-	return trafficPeers, nil
+	return trafficBandwidthData, nil
 }

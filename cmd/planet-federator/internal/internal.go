@@ -32,12 +32,13 @@ import (
 // Config contains main service config options
 type Config struct {
 	// Main config
-	JobTimeoutSecond    int
-	LogLevel            string
-	LogDisableTimestamp bool
-	LogDisableColors    bool
+	CronJobSchedule      string
+	CronJobTimeoutSecond int
+	LogLevel             string
+	LogDisableTimestamp  bool
+	LogDisableColors     bool
 
-	InfluxdbAddress   string
+	InfluxdbAddr      string
 	InfluxdbToken     string
 	InfluxdbOrg       string
 	InfluxdbBucket    string
@@ -69,7 +70,7 @@ func (s Service) Run(ctx context.Context) error {
 
 	log.Info("Start Cron scheduler")
 	cronScheduler := cron.New(cron.WithSeconds())
-	_, err := cronScheduler.AddFunc("*/30 * * * * *", s.TrafficBandwidthJobFunc)
+	_, err := cronScheduler.AddFunc(s.Config.CronJobSchedule, s.TrafficBandwidthJobFunc)
 	if err != nil {
 		return fmt.Errorf("Error adding function to Cron scheduler: %v", err)
 	}
@@ -89,7 +90,7 @@ func (s Service) Run(ctx context.Context) error {
 
 			log.Info("Stop Cron scheduler")
 			cronStopCtx := cronScheduler.Stop()
-			cronStopTimeoutTimer := time.NewTimer(time.Duration(s.Config.JobTimeoutSecond) * time.Second)
+			cronStopTimeoutTimer := time.NewTimer(time.Duration(s.Config.CronJobTimeoutSecond) * time.Second)
 			select {
 			case <-cronStopCtx.Done():
 			case <-cronStopTimeoutTimer.C:
@@ -112,7 +113,7 @@ func (s Service) Run(ctx context.Context) error {
 // TrafficBandwidthJobFunc queries traffic bandwidth (planet-exporter) data from Prometheus and store
 // them in federator backend
 func (s Service) TrafficBandwidthJobFunc() {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.Config.JobTimeoutSecond)*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.Config.CronJobTimeoutSecond)*time.Second)
 	defer cancel()
 
 	jobStartTime := time.Now()
