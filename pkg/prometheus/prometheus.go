@@ -1,4 +1,4 @@
-// Copyright 2020 - williamchanrico@gmail.com
+// Copyright 2021 - williamchanrico@gmail.com
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 // TODO: Complete package
 // e.g. abstract prom2json data structures
 
+// Scrape metrics from a prometheus HTTP endpoint
 func Scrape(url string) ([]*prom2json.Family, error) {
 	var err error
 

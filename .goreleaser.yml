@@ -38,6 +38,23 @@ builds:
       - goarm: mips64
         gomips: hardfloat
 
+  - main: ./cmd/planet-federator/main.go
+    binary: planet-federator
+    env:
+      - CGO_ENABLED=0
+    ldflags: |
+      -s -w
+      -X main.version=v{{.Version}}
+
+    ignore:
+      - goos: darwin
+        goarch: 386
+      - goos: linux
+        goarch: arm
+        goarm: 7
+      - goarm: mips64
+        gomips: hardfloat
+
 release:
   github:
   disable: false
