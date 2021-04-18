@@ -23,7 +23,7 @@ import (
 )
 
 // TODO: Complete package
-// e.g. abstract prom2json data structures
+// e.g. abstract prom2json data structures and maybe share http client
 
 // Scrape metrics from a prometheus HTTP endpoint
 func Scrape(url string) ([]*prom2json.Family, error) {
@@ -49,8 +49,7 @@ func Scrape(url string) ([]*prom2json.Family, error) {
 }
 
 func makeTransport() (*http.Transport, error) {
-	var transport *http.Transport
-	transport = &http.Transport{
+	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	return transport, nil

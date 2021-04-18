@@ -36,7 +36,6 @@ type task struct {
 }
 
 var (
-	once      sync.Once
 	singleton task
 )
 
@@ -208,6 +207,6 @@ func Collect(ctx context.Context) error {
 
 	log.Debugf("tasksocketstat.Collect retrieved %v upstreams metrics", len(upstreams))
 	log.Debugf("tasksocketstat.Collect retrieved %v downstreams metrics", len(downstreams))
-	log.Debugf("tasksocketstat.Collect process took %v", time.Now().Sub(startTime))
+	log.Debugf("tasksocketstat.Collect process took %v", time.Since(startTime))
 	return nil
 }
