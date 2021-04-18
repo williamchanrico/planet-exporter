@@ -209,7 +209,7 @@ It gets longer when querying 12h or days range of data.
 Planet Federator runs a Cron that queries Planet Exporter's traffic bandwidth data from Prometheus, pre-process, and
 stores them in a time-series database for clean and efficient dashboard queries.
 
-Latest tested query on pre-processed data from InfluxDB for a crowded service that took `8.494s`, now takes `2.259s`.
+Latest tested query on pre-processed data from InfluxDB for a crowded service that took `2.678s`, now takes `330ms`.
 
 TSDB supports:
 - [x] InfluxDB
