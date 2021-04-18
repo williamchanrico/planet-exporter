@@ -91,9 +91,6 @@ func Collect(ctx context.Context) error {
 
 	startTime := time.Now()
 
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
 	inventoryHosts := inventory.Get()
 
 	localAddr, err := network.DefaultLocalAddr()
@@ -171,6 +168,6 @@ func Collect(ctx context.Context) error {
 	singleton.mu.Unlock()
 
 	log.Debugf("taskdarkstat.Collect retrieved %v downstreams metrics", len(hosts))
-	log.Debugf("taskdarkstat.Collect process took %v", time.Now().Sub(startTime))
+	log.Debugf("taskdarkstat.Collect process took %v", time.Since(startTime))
 	return nil
 }

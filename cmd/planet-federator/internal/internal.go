@@ -135,6 +135,5 @@ func (s Service) TrafficBandwidthJobFunc() {
 		}, time.Now())
 	}
 
-	jobDuration := time.Now().Sub(jobStartTime).String()
-	log.Infof("Traffic Bandwidth Job took: %v", jobDuration)
+	log.Infof("Traffic Bandwidth Job took: %v", time.Since(jobStartTime))
 }

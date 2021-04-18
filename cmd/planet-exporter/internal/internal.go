@@ -95,7 +95,7 @@ func (s Service) Run(ctx context.Context) error {
 
 	handler := http.NewServeMux()
 	handler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`<html>
+		_, err := w.Write([]byte(`<html>
 				<head><title>Planet Exporter</title></head>
 				<body>
 				<h1>Planet Exporter</h1>
@@ -103,6 +103,9 @@ func (s Service) Run(ctx context.Context) error {
 				</body>
 			</html>
 		`))
+		if err != nil {
+			log.Errorf("Error writing response: %v", err)
+		}
 	})
 	handler.Handle("/metrics", promhttp.HandlerFor(
 		prometheus.Gatherers{r},

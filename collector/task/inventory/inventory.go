@@ -18,11 +18,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"planet-exporter/pkg/network"
 	"sync"
 	"time"
 
-	"github.com/gojektech/heimdall/v6/httpclient"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -31,8 +31,9 @@ type task struct {
 	enabled       bool
 	inventoryAddr string
 
-	mu     sync.Mutex
-	values map[string]Host
+	mu         sync.Mutex
+	values     map[string]Host
+	httpClient *http.Client
 }
 
 var (
@@ -40,11 +41,18 @@ var (
 	singleton task
 )
 
+const (
+	collectTimeout = 10 * time.Second
+)
+
 func init() {
 	singleton = task{
 		enabled: false,
 		mu:      sync.Mutex{},
 		values:  make(map[string]Host),
+		httpClient: &http.Client{
+			Timeout: collectTimeout,
+		},
 	}
 }
 
@@ -84,20 +92,21 @@ func Collect(ctx context.Context) error {
 
 	startTime := time.Now()
 
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	collectCtx, cancel := context.WithTimeout(ctx, collectTimeout)
 	defer cancel()
 
-	timeout := 5000 * time.Millisecond
-	client := httpclient.NewClient(httpclient.WithHTTPTimeout(timeout))
-
-	res, err := client.Get(singleton.inventoryAddr, nil)
+	request, err := http.NewRequestWithContext(collectCtx, http.MethodGet, singleton.inventoryAddr, nil)
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	response, err := singleton.httpClient.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
 
 	var metrics []Host
-	decoder := json.NewDecoder(res.Body)
+	decoder := json.NewDecoder(response.Body)
 	decoder.DisallowUnknownFields()
 	err = decoder.Decode(&metrics)
 	if err != nil {
@@ -114,7 +123,7 @@ func Collect(ctx context.Context) error {
 	singleton.mu.Unlock()
 
 	log.Debugf("taskinventory.Collect retrieved %v hosts", len(hosts))
-	log.Debugf("taskinventory.Collect process took %v", time.Now().Sub(startTime))
+	log.Debugf("taskinventory.Collect process took %v", time.Since(startTime))
 	return nil
 }
 

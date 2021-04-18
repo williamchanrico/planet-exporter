@@ -92,7 +92,7 @@ func main() {
 	influxdbClient := influxdb2.NewClient(config.InfluxdbAddr, config.InfluxdbToken)
 	influxdbHealth, err := influxdbClient.Health(ctx)
 	if err != nil {
-		log.Fatalf("Target Influxdb health-check error: %v", config.InfluxdbAddr, err)
+		log.Fatalf("Target Influxdb (%v) health-check error: %v", config.InfluxdbAddr, err)
 	}
 	if influxdbHealth.Status != influxdb2domain.HealthCheckStatusPass {
 		log.Fatalf("Target Influxdb (%v) is unhealthy: %v", config.InfluxdbAddr, err)
