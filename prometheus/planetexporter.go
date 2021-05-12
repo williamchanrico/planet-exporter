@@ -138,6 +138,7 @@ func (s Service) QueryPlanetExporterUpstreamServices(ctx context.Context, startT
 		upstreamPort := v.Metric["port"]
 		upstreamHostgroup := v.Metric["remote_hostgroup"]
 		upstreamAddress := v.Metric["remote_address"]
+		protocol := v.Metric["protocol"]
 
 		upstreamServices = append(upstreamServices, PlanetExporterUpstreamService{
 			LocalHostgroup:    string(localHostgroup),
@@ -146,6 +147,7 @@ func (s Service) QueryPlanetExporterUpstreamServices(ctx context.Context, startT
 			UpstreamPort:      string(upstreamPort),
 			UpstreamHostgroup: string(upstreamHostgroup),
 			UpstreamAddress:   string(upstreamAddress),
+			Protocol:          string(protocol),
 		})
 	}
 
@@ -196,6 +198,7 @@ func (s Service) QueryPlanetExporterDownstreamServices(ctx context.Context, star
 		localPort := v.Metric["port"]
 		downstreamHostgroup := v.Metric["remote_hostgroup"]
 		downstreamAddress := v.Metric["remote_address"]
+		protocol := v.Metric["protocol"]
 
 		downstreamServices = append(downstreamServices, PlanetExporterDownstreamService{
 			LocalHostgroup:      string(localHostgroup),
@@ -204,6 +207,7 @@ func (s Service) QueryPlanetExporterDownstreamServices(ctx context.Context, star
 			LocalPort:           string(localPort),
 			DownstreamHostgroup: string(downstreamHostgroup),
 			DownstreamAddress:   string(downstreamAddress),
+			Protocol:            string(protocol),
 		})
 	}
 
