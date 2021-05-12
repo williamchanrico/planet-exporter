@@ -61,7 +61,8 @@ type DownstreamService struct {
 	Protocol            string
 }
 
-// Backend interface for a time-series DB handling pre-processed planet-exporter data
+// Backend interface for a time-series DB that is handling pre-processed planet-exporter data
+// Planet Expoter <- Prometheus -> Planet Federator (pre-process) -> Time-series DB
 type Backend interface {
 	AddTrafficBandwidthData(context.Context, TrafficBandwidth, time.Time) error
 	AddUpstreamService(context.Context, UpstreamService, time.Time) error

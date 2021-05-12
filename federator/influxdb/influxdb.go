@@ -143,7 +143,7 @@ func (b Backend) AddUpstreamService(ctx context.Context, upstreamService federat
 
 // AddDownstreamService adds a downstream service dependency of a service
 func (b Backend) AddDownstreamService(ctx context.Context, downstreamService federator.DownstreamService, t time.Time) error {
-	dataPoint := influxdb2.NewPointWithMeasurement(upstreamServiceMeasurement).
+	dataPoint := influxdb2.NewPointWithMeasurement(downstreamServiceMeasurement).
 		AddTag(localServiceHostgroupTag, downstreamService.LocalHostgroup).
 		AddTag(localServiceAddressTag, downstreamService.LocalAddress).
 		AddTag(localServicePortTag, downstreamService.LocalPort).

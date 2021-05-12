@@ -104,9 +104,9 @@ func (s Service) QueryPlanetExporterUpstreamServices(ctx context.Context, startT
 						remote_address!="localhost",
 						process_name!="",
 						remote_address!~"\\d.*"
-					}[7d]
+					}[15s]
 				)
-			) by (remote_address, remote_hostgroup, port, process_name, protocol)`,
+			) by (local_hostgroup, local_address, remote_address, remote_hostgroup, port, process_name, protocol)`,
 		regexExcludedPorts, regexExcludedAddresses)
 	qrUpstreamServices, err := s.queryRange(ctx, qr, startTime, endTime)
 	if err != nil {
@@ -162,9 +162,9 @@ func (s Service) QueryPlanetExporterDownstreamServices(ctx context.Context, star
 						remote_address!="localhost",
 						process_name!="",
 						remote_address!~"\\d.*"
-					}[7d]
+					}[15s]
 				)
-			) by (remote_address, remote_hostgroup, port, process_name, protocol)`,
+			) by (local_hostgroup, local_address, remote_address, remote_hostgroup, port, process_name, protocol)`,
 		regexExcludedPorts, regexExcludedAddresses)
 	qrDownstreamServices, err := s.queryRange(ctx, qr, startTime, endTime)
 	if err != nil {
