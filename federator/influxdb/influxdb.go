@@ -88,7 +88,7 @@ const (
 )
 
 // AddTrafficBandwidthData adds a service's ingress bytes data point
-// Example InfluxQL:
+// Example InfluxQL: Produces time series data showing traffic bandwidth for service = $service
 //   SELECT
 //     SUM("bandwidth_bps")
 //   FROM
@@ -125,6 +125,14 @@ func (b Backend) addBytesMeasurement(ctx context.Context, measurement string, tr
 }
 
 // AddUpstreamService adds an upstream service dependency of a service
+// Example InfluxQL: Produces tabular format listing upstreams for service = $service
+//   SELECT
+//       SUM("service_dependency")
+//   FROM (
+//       SELECT * FROM "upstream" WHERE ("service" = '$service') AND Time > now() - 7d
+//   )
+//   GROUP BY
+//       "upstream_service", "upstream_address", "process_name", "upstream_port", "protocol", time(10000d)
 func (b Backend) AddUpstreamService(ctx context.Context, upstreamService federator.UpstreamService, t time.Time) error {
 	dataPoint := influxdb2.NewPointWithMeasurement(upstreamServiceMeasurement).
 		AddTag(localServiceHostgroupTag, upstreamService.LocalHostgroup).
@@ -142,6 +150,14 @@ func (b Backend) AddUpstreamService(ctx context.Context, upstreamService federat
 }
 
 // AddDownstreamService adds a downstream service dependency of a service
+// Example InfluxQL: Produces tabular format listing downstreams for service = $service
+//   SELECT
+//       SUM("service_dependency")
+//   FROM (
+//       SELECT * FROM "downstream" WHERE ("service" = '$service') AND Time > now() - 7d
+//   )
+//   GROUP BY
+//       "downstream_service", "downstream_address", "process_name", "port", "protocol", time(10000d)
 func (b Backend) AddDownstreamService(ctx context.Context, downstreamService federator.DownstreamService, t time.Time) error {
 	dataPoint := influxdb2.NewPointWithMeasurement(downstreamServiceMeasurement).
 		AddTag(localServiceHostgroupTag, downstreamService.LocalHostgroup).

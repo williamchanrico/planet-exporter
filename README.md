@@ -25,17 +25,17 @@
   </a>
   <!-- Apache License -->
   <a href="https://opensource.org/licenses/Apache-2.0"><img
-	src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"
-	border="0"
-	alt="Apache-2.0 Licence"
-	title="Apache-2.0 Licence">
+    src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"
+    border="0"
+    alt="Apache-2.0 Licence"
+    title="Apache-2.0 Licence">
   </a>
   <!-- Open Source Love -->
   <a href="#"><img
-	src="https://badges.frapsoft.com/os/v1/open-source.svg?v=103"
-	border="0"
-	alt="Open Source Love"
-	title="Open Source Love">
+    src="https://badges.frapsoft.com/os/v1/open-source.svg?v=103"
+    border="0"
+    alt="Open Source Love"
+    title="Open Source Love">
   </a>
 </div>
 
@@ -65,27 +65,27 @@ There's no required flags. It is configured with usable defaults.
 ```
 Usage of planet-exporter:
   -listen-address string
-    	Address to which exporter will bind its HTTP interface (default "0.0.0.0:19100")
+        Address to which exporter will bind its HTTP interface (default "0.0.0.0:19100")
   -log-disable-colors
-    	Disable colors on logger
+        Disable colors on logger
   -log-disable-timestamp
-    	Disable timestamp on logger
+        Disable timestamp on logger
   -log-level string
-    	Log level (default "info")
+        Log level (default "info")
   -task-darkstat-addr string
-    	Darkstat target address
+        Darkstat target address
   -task-darkstat-enabled
-    	Enable darkstat collector task
+        Enable darkstat collector task
   -task-interval string
-    	Interval between collection of expensive data into memory (default "7s")
+        Interval between collection of expensive data into memory (default "7s")
   -task-inventory-addr string
-    	Darkstat target address
+        Darkstat target address
   -task-inventory-enabled
-    	Enable inventory collector task
+        Enable inventory collector task
   -task-socketstat-enabled
-    	Enable socketstat collector task (default true)
+        Enable socketstat collector task (default true)
   -version
-    	Show version and exit
+        Show version and exit
 ```
 
 Running with minimum collector tasks (just the socketstat)
@@ -98,10 +98,10 @@ Running with inventory and darkstat (installed separately rev >= [e7e6652](https
 
 ```
 # planet-exporter \
-	-task-inventory-enabled \
-	-task-inventory-addr http://link-to-your.net/inventory_hosts.json \
-	-task-darkstat-enabled \
-	-task-darkstat-addr http://localhost:51666/metrics
+    -task-inventory-enabled \
+    -task-inventory-addr http://link-to-your.net/inventory_hosts.json \
+    -task-darkstat-enabled \
+    -task-darkstat-addr http://localhost:51666/metrics
 ```
 
 ### Collector Tasks
@@ -216,24 +216,43 @@ TSDB supports:
 - [ ] Prometheus (if InfluxDB turns out to be a bad choice)
 - [ ] BigQuery
 
-#### Example InfluQL
+#### Example InfluxQL
 
 ```sql
+-- Example InfluxQL: Produces time series data showing traffic bandwidth for service = $service
 SELECT
-	SUM("bandwidth_bps")
+  SUM("bandwidth_bps")
 FROM
-	"ingress"
+  "ingress"
 WHERE
-	("service" = '$service') AND $timeFilter
+  ("service" = '$service') AND $timeFilter
 GROUP BY
-	time($__interval), "service", "remote_service", "remote_address"
+  time($__interval), "service", "remote_service", "remote_address"
+
+-- Example InfluxQL: Produces tabular format listing upstreams for service = $service
+SELECT
+    SUM("service_dependency")
+FROM (
+    SELECT * FROM "upstream" WHERE ("service" = '$service') AND Time > now() - 7d
+)
+GROUP BY
+    "upstream_service", "upstream_address", "process_name", "upstream_port", "protocol", time(10000d)
+
+-- Example InfluxQL: Produces tabular format listing downstreams for service = $service
+SELECT
+    SUM("service_dependency")
+FROM (
+    SELECT * FROM "downstream" WHERE ("service" = '$service') AND Time > now() - 7d
+)
+GROUP BY
+    "downstream_service", "downstream_address", "process_name", "port", "protocol", time(10000d)
 ```
 
 ```sh
 $ planet-federator \
-	-prometheus-addr "http://127.0.0.1:9090" \
-	-influxdb-addr "http://127.0.0.1:8086" \
-	-influxdb-bucket "mothership" # Works as database name if you're using InfluxDB v1.8 and earlier
+    -prometheus-addr "http://127.0.0.1:9090" \
+    -influxdb-addr "http://127.0.0.1:8086" \
+    -influxdb-bucket "mothership" # Works as database name if you're using InfluxDB v1.8 and earlier
 ```
 
 ## Used Go Version
