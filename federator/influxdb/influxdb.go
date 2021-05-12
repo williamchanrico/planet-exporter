@@ -22,6 +22,7 @@ import (
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2api "github.com/influxdata/influxdb-client-go/v2/api"
+	log "github.com/sirupsen/logrus"
 )
 
 // Backend interface for a time-series DB handling pre-processed planet-exporter data
@@ -34,26 +35,56 @@ type Backend struct {
 
 // New returns new influxdb federator backend
 func New(c influxdb2.Client, org, bucket string) Backend {
+	writeAPI := c.WriteAPI(org, bucket)
+
+	errChan := writeAPI.Errors()
+	go func() {
+		for err := range errChan {
+			log.Errorf("Async error received on influxdb writes API: %v", err)
+		}
+	}()
+
 	return Backend{
 		client:   c,
-		writeAPI: c.WriteAPI(org, bucket),
+		writeAPI: writeAPI,
 		org:      org,
 		bucket:   bucket,
 	}
 }
 
 const (
+	// Measurements
+
+	upstreamServiceMeasurement   = "upstream"
+	downstreamServiceMeasurement = "downstream"
+
 	ingressDirectionMeasurement = "ingress"
 	egressDirectionMeasurement  = "egress"
 	unknownDirectionMeasurement = "unknown"
 
-	localServiceHostgroupTag = "service"
-	localServiceAddressTag   = "address"
+	// Tags
+
+	localServiceHostgroupTag   = "service"
+	localServiceAddressTag     = "address"
+	localServicePortTag        = "port"
+	localServiceProcessNameTag = "process_name"
 
 	remoteServiceHostgroupTag = "remote_service"
 	remoteServiceAddressTag   = "remote_address"
 
-	bandwidthBpsField = "bandwidth_bps"
+	upstreamServiceHostgroupTag = "upstream_service"
+	upstreamServiceAddressTag   = "upstream_address"
+	upstreamServicePortTag      = "upstream_port"
+
+	downstreamServiceHostgroupTag = "upstream_service"
+	downstreamServiceAddressTag   = "upstream_address"
+
+	protocolTag = "protocol"
+
+	// Fields
+
+	bandwidthBpsField      = "bandwidth_bps"
+	serviceDependencyField = "service_dependency"
 )
 
 // AddTrafficBandwidthData adds a service's ingress bytes data point
@@ -88,6 +119,40 @@ func (b Backend) addBytesMeasurement(ctx context.Context, measurement string, tr
 		AddTag(remoteServiceAddressTag, trafficBandwidth.RemoteDomain).
 		AddField(bandwidthBpsField, trafficBandwidth.BitsPerSecond).
 		SetTime(time.Now())
+	b.writeAPI.WritePoint(dataPoint)
+
+	return nil
+}
+
+// AddUpstreamService adds an upstream service dependency of a service
+func (b Backend) AddUpstreamService(ctx context.Context, upstreamService federator.UpstreamService, t time.Time) error {
+	dataPoint := influxdb2.NewPointWithMeasurement(upstreamServiceMeasurement).
+		AddTag(localServiceHostgroupTag, upstreamService.LocalHostgroup).
+		AddTag(localServiceAddressTag, upstreamService.LocalAddress).
+		AddTag(upstreamServiceHostgroupTag, upstreamService.UpstreamHostgroup).
+		AddTag(upstreamServiceAddressTag, upstreamService.UpstreamAddress).
+		AddTag(upstreamServicePortTag, upstreamService.UpstreamPort).
+		AddTag(localServiceProcessNameTag, upstreamService.LocalProcessName).
+		AddTag(protocolTag, upstreamService.Protocol).
+		AddField(serviceDependencyField, 1).
+		SetTime(t)
+	b.writeAPI.WritePoint(dataPoint)
+
+	return nil
+}
+
+// AddDownstreamService adds a downstream service dependency of a service
+func (b Backend) AddDownstreamService(ctx context.Context, downstreamService federator.DownstreamService, t time.Time) error {
+	dataPoint := influxdb2.NewPointWithMeasurement(downstreamServiceMeasurement).
+		AddTag(localServiceHostgroupTag, downstreamService.LocalHostgroup).
+		AddTag(localServiceAddressTag, downstreamService.LocalAddress).
+		AddTag(localServicePortTag, downstreamService.LocalPort).
+		AddTag(localServiceProcessNameTag, downstreamService.LocalProcessName).
+		AddTag(downstreamServiceHostgroupTag, downstreamService.DownstreamHostgroup).
+		AddTag(downstreamServiceAddressTag, downstreamService.DownstreamAddress).
+		AddTag(protocolTag, downstreamService.Protocol).
+		AddField(serviceDependencyField, 1).
+		SetTime(t)
 	b.writeAPI.WritePoint(dataPoint)
 
 	return nil

@@ -41,7 +41,8 @@ type PlanetExporterTrafficBandwidth struct {
 // QueryPlanetExporterTrafficBandwidth returns list traffic bandwidth data
 func (s Service) QueryPlanetExporterTrafficBandwidth(ctx context.Context, startTime time.Time, endTime time.Time) ([]PlanetExporterTrafficBandwidth, error) {
 	// query data as bits per second and only those higher than 1Kbps to reduce noise
-	qr := fmt.Sprintf(`
+	// include remote services (hostgroup and domain) in the result
+	qrWithRemoteServices := fmt.Sprintf(`
 			sum (
 				sum (
 					irate (planet_traffic_bytes_total{local_hostgroup!="", remote_ip!~"%v", remote_domain!~"%v", remote_hostgroup!=""}[30s])
@@ -49,7 +50,19 @@ func (s Service) QueryPlanetExporterTrafficBandwidth(ctx context.Context, startT
 			)
 			by (direction, local_hostgroup, local_domain, remote_hostgroup, remote_domain) > 1000`,
 		regexExcludedAddresses, regexExcludedAddresses)
-	qrTrafficPeers, err := s.queryRange(ctx, qr, startTime, endTime)
+	withRemoteServices, err := s.queryPlanetExporterTrafficBandwidth(ctx, qrWithRemoteServices, startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	trafficBandwidthData := []PlanetExporterTrafficBandwidth{}
+	trafficBandwidthData = append(trafficBandwidthData, withRemoteServices...)
+
+	return trafficBandwidthData, nil
+}
+
+func (s Service) queryPlanetExporterTrafficBandwidth(ctx context.Context, query string, startTime time.Time, endTime time.Time) ([]PlanetExporterTrafficBandwidth, error) {
+	qrTrafficPeers, err := s.queryRange(ctx, query, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
@@ -79,4 +92,120 @@ func (s Service) QueryPlanetExporterTrafficBandwidth(ctx context.Context, startT
 	}
 
 	return trafficBandwidthData, nil
+}
+
+// PlanetExporterUpstreamService represents an upstream service dependency of a local service
+type PlanetExporterUpstreamService struct {
+	LocalHostgroup    string `json:"local_hostgroup"`
+	LocalAddress      string `json:"local_address"`
+	LocalProcessName  string `json:"local_process_name"`
+	UpstreamPort      string `json:"upstream_port"`
+	UpstreamHostgroup string `json:"upstream_hostgroup"`
+	UpstreamAddress   string `json:"upstream_address"`
+	Protocol          string `json:"protocol"`
+}
+
+// QueryPlanetExporterUpstreamServices returns all upstream service dependencies
+func (s Service) QueryPlanetExporterUpstreamServices(ctx context.Context, startTime time.Time, endTime time.Time) ([]PlanetExporterUpstreamService, error) {
+	qr := fmt.Sprintf(`
+			max(
+				max_over_time(
+					planet_upstream{
+						local_hostgroup!="",
+						port!~"%v",
+						remote_address!~"%v",
+						remote_address!="localhost",
+						process_name!="",
+						remote_address!~"\\d.*"
+					}[15s]
+				)
+			) by (local_hostgroup, local_address, remote_address, remote_hostgroup, port, process_name, protocol)`,
+		regexExcludedPorts, regexExcludedAddresses)
+	qrUpstreamServices, err := s.queryRange(ctx, qr, startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	upstreamServices := []PlanetExporterUpstreamService{}
+	for _, v := range qrUpstreamServices.(model.Matrix) {
+		localHostgroup, ok := v.Metric["local_hostgroup"]
+		if !ok {
+			log.Warnf("Found empty local_hostgroup: %v", v.Metric.String())
+			continue
+		}
+		localAddress := v.Metric["local_address"]
+		localProcessName := v.Metric["process_name"]
+		upstreamPort := v.Metric["port"]
+		upstreamHostgroup := v.Metric["remote_hostgroup"]
+		upstreamAddress := v.Metric["remote_address"]
+
+		upstreamServices = append(upstreamServices, PlanetExporterUpstreamService{
+			LocalHostgroup:    string(localHostgroup),
+			LocalAddress:      string(localAddress),
+			LocalProcessName:  string(localProcessName),
+			UpstreamPort:      string(upstreamPort),
+			UpstreamHostgroup: string(upstreamHostgroup),
+			UpstreamAddress:   string(upstreamAddress),
+		})
+	}
+
+	return upstreamServices, nil
+}
+
+// PlanetExporterDownstreamService represents an downstream service dependency of a local service
+type PlanetExporterDownstreamService struct {
+	LocalHostgroup      string `json:"local_hostgroup"`
+	LocalAddress        string `json:"local_address"`
+	LocalProcessName    string `json:"local_process_name"`
+	LocalPort           string `json:"local_port"`
+	DownstreamHostgroup string `json:"downstream_hostgroup"`
+	DownstreamAddress   string `json:"downstream_address"`
+	Protocol            string `json:"protocol"`
+}
+
+// QueryPlanetExporterDownstreamServices returns all downstream service dependencies
+func (s Service) QueryPlanetExporterDownstreamServices(ctx context.Context, startTime time.Time, endTime time.Time) ([]PlanetExporterDownstreamService, error) {
+	qr := fmt.Sprintf(`
+			max(
+				max_over_time(
+					planet_downstream{
+						local_hostgroup!="",
+						port!~"%v",
+						remote_address!~"%v",
+						remote_address!="localhost",
+						process_name!="",
+						remote_address!~"\\d.*"
+					}[15s]
+				)
+			) by (local_hostgroup, local_address, remote_address, remote_hostgroup, port, process_name, protocol)`,
+		regexExcludedPorts, regexExcludedAddresses)
+	qrDownstreamServices, err := s.queryRange(ctx, qr, startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	downstreamServices := []PlanetExporterDownstreamService{}
+	for _, v := range qrDownstreamServices.(model.Matrix) {
+		localHostgroup, ok := v.Metric["local_hostgroup"]
+		if !ok {
+			log.Warnf("Found empty local_hostgroup: %v", v.Metric.String())
+			continue
+		}
+		localAddress := v.Metric["local_address"]
+		localProcessName := v.Metric["process_name"]
+		localPort := v.Metric["port"]
+		downstreamHostgroup := v.Metric["remote_hostgroup"]
+		downstreamAddress := v.Metric["remote_address"]
+
+		downstreamServices = append(downstreamServices, PlanetExporterDownstreamService{
+			LocalHostgroup:      string(localHostgroup),
+			LocalAddress:        string(localAddress),
+			LocalProcessName:    string(localProcessName),
+			LocalPort:           string(localPort),
+			DownstreamHostgroup: string(downstreamHostgroup),
+			DownstreamAddress:   string(downstreamAddress),
+		})
+	}
+
+	return downstreamServices, nil
 }

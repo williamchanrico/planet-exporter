@@ -72,7 +72,15 @@ func (s Service) Run(ctx context.Context) error {
 	cronScheduler := cron.New(cron.WithSeconds())
 	_, err := cronScheduler.AddFunc(s.Config.CronJobSchedule, s.TrafficBandwidthJobFunc)
 	if err != nil {
-		return fmt.Errorf("Error adding function to Cron scheduler: %v", err)
+		return fmt.Errorf("Error adding TrafficBandwidthJobFunc function to Cron scheduler: %v", err)
+	}
+	_, err = cronScheduler.AddFunc(s.Config.CronJobSchedule, s.UpstreamServicesJobFunc)
+	if err != nil {
+		return fmt.Errorf("Error adding UpstreamServicesJobFunc function to Cron scheduler: %v", err)
+	}
+	_, err = cronScheduler.AddFunc(s.Config.CronJobSchedule, s.DownstreamServicesJobFunc)
+	if err != nil {
+		return fmt.Errorf("Error adding DownstreamServicesJobFunc function to Cron scheduler: %v", err)
 	}
 	cronScheduler.Start()
 
@@ -136,4 +144,62 @@ func (s Service) TrafficBandwidthJobFunc() {
 	}
 
 	log.Infof("Traffic Bandwidth Job took: %v", time.Since(jobStartTime))
+}
+
+// UpstreamServicesJobFunc queries upstream services (planet-exporter) data from Prometheus and store
+// them in federator backend
+func (s Service) UpstreamServicesJobFunc() {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.Config.CronJobTimeoutSecond)*time.Second)
+	defer cancel()
+
+	jobStartTime := time.Now()
+	log.Debugf("A job started: %v", jobStartTime)
+
+	upstreamServices, err := s.PrometheusSvc.QueryPlanetExporterUpstreamServices(ctx, time.Now().Add(-15*time.Second), time.Now())
+	if err != nil {
+		log.Errorf("Error querying upstream services from prometheus: %v", err)
+	}
+
+	for _, svc := range upstreamServices {
+		_ = s.FederatorSvc.AddUpstreamService(ctx, federator.UpstreamService{
+			LocalHostgroup:    svc.LocalHostgroup,
+			LocalAddress:      svc.LocalAddress,
+			LocalProcessName:  svc.LocalProcessName,
+			UpstreamPort:      svc.UpstreamPort,
+			UpstreamHostgroup: svc.UpstreamHostgroup,
+			UpstreamAddress:   svc.UpstreamAddress,
+			Protocol:          svc.Protocol,
+		}, time.Now())
+	}
+
+	log.Infof("Upstream Service Job took: %v", time.Since(jobStartTime))
+}
+
+// DownstreamServicesJobFunc queries downstream services (planet-exporter) data from Prometheus and store
+// them in federator backend
+func (s Service) DownstreamServicesJobFunc() {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.Config.CronJobTimeoutSecond)*time.Second)
+	defer cancel()
+
+	jobStartTime := time.Now()
+	log.Debugf("A job started: %v", jobStartTime)
+
+	downstreamServices, err := s.PrometheusSvc.QueryPlanetExporterDownstreamServices(ctx, time.Now().Add(-15*time.Second), time.Now())
+	if err != nil {
+		log.Errorf("Error querying downstream services from prometheus: %v", err)
+	}
+
+	for _, svc := range downstreamServices {
+		_ = s.FederatorSvc.AddDownstreamService(ctx, federator.DownstreamService{
+			LocalHostgroup:      svc.LocalHostgroup,
+			LocalAddress:        svc.LocalAddress,
+			LocalProcessName:    svc.LocalProcessName,
+			LocalPort:           svc.LocalPort,
+			DownstreamHostgroup: svc.DownstreamHostgroup,
+			DownstreamAddress:   svc.DownstreamAddress,
+			Protocol:            svc.Protocol,
+		}, time.Now())
+	}
+
+	log.Infof("Downstream Service Job took: %v", time.Since(jobStartTime))
 }
