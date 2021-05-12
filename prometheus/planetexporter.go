@@ -41,7 +41,8 @@ type PlanetExporterTrafficBandwidth struct {
 // QueryPlanetExporterTrafficBandwidth returns list traffic bandwidth data
 func (s Service) QueryPlanetExporterTrafficBandwidth(ctx context.Context, startTime time.Time, endTime time.Time) ([]PlanetExporterTrafficBandwidth, error) {
 	// query data as bits per second and only those higher than 1Kbps to reduce noise
-	qr := fmt.Sprintf(`
+	// include remote services (hostgroup and domain) in the result
+	qrWithRemoteServices := fmt.Sprintf(`
 			sum (
 				sum (
 					irate (planet_traffic_bytes_total{local_hostgroup!="", remote_ip!~"%v", remote_domain!~"%v", remote_hostgroup!=""}[30s])
@@ -49,7 +50,19 @@ func (s Service) QueryPlanetExporterTrafficBandwidth(ctx context.Context, startT
 			)
 			by (direction, local_hostgroup, local_domain, remote_hostgroup, remote_domain) > 1000`,
 		regexExcludedAddresses, regexExcludedAddresses)
-	qrTrafficPeers, err := s.queryRange(ctx, qr, startTime, endTime)
+	withRemoteServices, err := s.queryPlanetExporterTrafficBandwidth(ctx, qrWithRemoteServices, startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	trafficBandwidthData := []PlanetExporterTrafficBandwidth{}
+	trafficBandwidthData = append(trafficBandwidthData, withRemoteServices...)
+
+	return trafficBandwidthData, nil
+}
+
+func (s Service) queryPlanetExporterTrafficBandwidth(ctx context.Context, query string, startTime time.Time, endTime time.Time) ([]PlanetExporterTrafficBandwidth, error) {
+	qrTrafficPeers, err := s.queryRange(ctx, query, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
