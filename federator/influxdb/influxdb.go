@@ -76,8 +76,8 @@ const (
 	upstreamServiceAddressTag   = "upstream_address"
 	upstreamServicePortTag      = "upstream_port"
 
-	downstreamServiceHostgroupTag = "upstream_service"
-	downstreamServiceAddressTag   = "upstream_address"
+	downstreamServiceHostgroupTag = "downstream_service"
+	downstreamServiceAddressTag   = "downstream_address"
 
 	protocolTag = "protocol"
 
