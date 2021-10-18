@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"planet-exporter/cmd/planet-federator/internal"
 	federator "planet-exporter/federator"
@@ -37,11 +38,20 @@ var (
 )
 
 func main() {
+	var err error
 	var config internal.Config
 
+	// cronJobTimeOffsetDuration allows federator to go back in time. For example,
+	// set '-10h30m' to tell federator to offset query time to 10 hours 30 minutes ago.
+	//
+	// This is useful when we want to integrate federator to existing Prometheus setup.
+	// TODO: Allows running multiple jobs for federator to catch up faster.
+	var cronJobTimeOffsetDuration string
+
 	// Main
-	flag.StringVar(&config.CronJobSchedule, "cron-job-schedule", "*/30 * * * * *", "Cron jobs schedule to pre-process planet-exporter metrics into federator backend")
+	flag.StringVar(&config.CronJobSchedule, "cron-job-schedule", "*/30 * * * * *", "Cron jobs schedule (Quartz Scheduler format: s m h dom mo dow y) to pre-process planet-exporter metrics into federator backend")
 	flag.IntVar(&config.CronJobTimeoutSecond, "cron-job-timeout-second", 30, "Timeout per federator job in second")
+	flag.StringVar(&cronJobTimeOffsetDuration, "cron-job-time-offset", "0s", "Cron jobs time offset. (e.g. '-1h5m' to query data from 1 hour 5 minutes ago)")
 	flag.StringVar(&config.LogLevel, "log-level", "info", "Log level")
 	flag.BoolVar(&config.LogDisableTimestamp, "log-disable-timestamp", false, "Disable timestamp on logger")
 	flag.BoolVar(&config.LogDisableColors, "log-disable-colors", false, "Disable colors on logger")
@@ -62,6 +72,11 @@ func main() {
 	if showVersionAndExit {
 		fmt.Printf("planet-federator %v\n", version)
 		os.Exit(0)
+	}
+
+	config.CronJobTimeOffset, err = time.ParseDuration(cronJobTimeOffsetDuration)
+	if err != nil {
+		log.Fatalf("Error parsing cron-job-time-offset-minute: %v", err)
 	}
 
 	log.SetFormatter(&log.TextFormatter{

@@ -32,11 +32,21 @@ import (
 // Config contains main service config options
 type Config struct {
 	// Main config
+	// CronJobSchedule schedule using cron format used by the Quartz Scheduler
+	// 1. Seconds
+	// 2. Minutes
+	// 3. Hours
+	// 4. Day-of-Month
+	// 5. Month
+	// 6. Day-of-Week
+	// 7. Year (optional field)
 	CronJobSchedule      string
 	CronJobTimeoutSecond int
-	LogLevel             string
-	LogDisableTimestamp  bool
-	LogDisableColors     bool
+	// CronJobTimeOffset all cron job start time (e.g. '-5m' will query data from 5 minutes ago)
+	CronJobTimeOffset   time.Duration
+	LogLevel            string
+	LogDisableTimestamp bool
+	LogDisableColors    bool
 
 	InfluxdbAddr      string
 	InfluxdbToken     string
@@ -118,16 +128,28 @@ func (s Service) Run(ctx context.Context) error {
 	return nil
 }
 
+// getCronJobStartTime returns the time for cron job starting point
+func (s Service) getCronJobStartTime() time.Time {
+	// We want to offset the query time by the specified offset
+	return time.Now().Add(s.Config.CronJobTimeOffset)
+}
+
+// getCronJobDuration returns the duration since the cron job was started
+func (s Service) getCronJobDuration(startTime time.Time) time.Duration {
+	// We want to offset the query time by the specified offset
+	return time.Now().Add(s.Config.CronJobTimeOffset).Sub(startTime)
+}
+
 // TrafficBandwidthJobFunc queries traffic bandwidth (planet-exporter) data from Prometheus and store
 // them in federator backend
 func (s Service) TrafficBandwidthJobFunc() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.Config.CronJobTimeoutSecond)*time.Second)
 	defer cancel()
 
-	jobStartTime := time.Now()
+	jobStartTime := s.getCronJobStartTime()
 	log.Debugf("A job started: %v", jobStartTime)
 
-	trafficPeers, err := s.PrometheusSvc.QueryPlanetExporterTrafficBandwidth(ctx, time.Now().Add(-15*time.Second), time.Now())
+	trafficPeers, err := s.PrometheusSvc.QueryPlanetExporterTrafficBandwidth(ctx, jobStartTime.Add(-15*time.Second), jobStartTime)
 	if err != nil {
 		log.Errorf("Error querying traffic peers from prometheus: %v", err)
 	}
@@ -140,10 +162,10 @@ func (s Service) TrafficBandwidthJobFunc() {
 			RemoteDomain:    trafficPeer.RemoteDomain,
 			BitsPerSecond:   trafficPeer.BandwidthBitsPerSecond,
 			Direction:       trafficPeer.Direction,
-		}, time.Now())
+		}, jobStartTime)
 	}
 
-	log.Infof("Traffic Bandwidth Job took: %v", time.Since(jobStartTime))
+	log.Infof("Traffic Bandwidth Job took: %v", s.getCronJobDuration(jobStartTime))
 }
 
 // UpstreamServicesJobFunc queries upstream services (planet-exporter) data from Prometheus and store
@@ -152,10 +174,10 @@ func (s Service) UpstreamServicesJobFunc() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.Config.CronJobTimeoutSecond)*time.Second)
 	defer cancel()
 
-	jobStartTime := time.Now()
+	jobStartTime := s.getCronJobStartTime()
 	log.Debugf("A job started: %v", jobStartTime)
 
-	upstreamServices, err := s.PrometheusSvc.QueryPlanetExporterUpstreamServices(ctx, time.Now().Add(-15*time.Second), time.Now())
+	upstreamServices, err := s.PrometheusSvc.QueryPlanetExporterUpstreamServices(ctx, jobStartTime.Add(-15*time.Second), jobStartTime)
 	if err != nil {
 		log.Errorf("Error querying upstream services from prometheus: %v", err)
 	}
@@ -169,10 +191,10 @@ func (s Service) UpstreamServicesJobFunc() {
 			UpstreamHostgroup: svc.UpstreamHostgroup,
 			UpstreamAddress:   svc.UpstreamAddress,
 			Protocol:          svc.Protocol,
-		}, time.Now())
+		}, jobStartTime)
 	}
 
-	log.Infof("Upstream Service Job took: %v", time.Since(jobStartTime))
+	log.Infof("Upstream Service Job took: %v", s.getCronJobDuration(jobStartTime))
 }
 
 // DownstreamServicesJobFunc queries downstream services (planet-exporter) data from Prometheus and store
@@ -181,10 +203,10 @@ func (s Service) DownstreamServicesJobFunc() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.Config.CronJobTimeoutSecond)*time.Second)
 	defer cancel()
 
-	jobStartTime := time.Now()
+	jobStartTime := s.getCronJobStartTime()
 	log.Debugf("A job started: %v", jobStartTime)
 
-	downstreamServices, err := s.PrometheusSvc.QueryPlanetExporterDownstreamServices(ctx, time.Now().Add(-15*time.Second), time.Now())
+	downstreamServices, err := s.PrometheusSvc.QueryPlanetExporterDownstreamServices(ctx, jobStartTime.Add(-15*time.Second), jobStartTime)
 	if err != nil {
 		log.Errorf("Error querying downstream services from prometheus: %v", err)
 	}
@@ -198,8 +220,8 @@ func (s Service) DownstreamServicesJobFunc() {
 			DownstreamHostgroup: svc.DownstreamHostgroup,
 			DownstreamAddress:   svc.DownstreamAddress,
 			Protocol:            svc.Protocol,
-		}, time.Now())
+		}, jobStartTime)
 	}
 
-	log.Infof("Downstream Service Job took: %v", time.Since(jobStartTime))
+	log.Infof("Downstream Service Job took: %v", s.getCronJobDuration(jobStartTime))
 }
