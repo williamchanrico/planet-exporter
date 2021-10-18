@@ -118,7 +118,7 @@ func (b Backend) addBytesMeasurement(ctx context.Context, measurement string, tr
 		AddTag(remoteServiceHostgroupTag, trafficBandwidth.RemoteHostgroup).
 		AddTag(remoteServiceAddressTag, trafficBandwidth.RemoteDomain).
 		AddField(bandwidthBpsField, trafficBandwidth.BitsPerSecond).
-		SetTime(time.Now())
+		SetTime(t)
 	b.writeAPI.WritePoint(dataPoint)
 
 	return nil

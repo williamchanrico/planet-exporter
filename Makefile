@@ -3,7 +3,7 @@
 NAME          := planet-exporter
 BIN_DIRECTORY := ./bin
 REVISION      := $(shell git rev-parse --short HEAD 2>/dev/null)
-VERSION       := v0.1.0
+VERSION       := v0.1.1
 
 ifndef REVISION
 	override REVISION = none
