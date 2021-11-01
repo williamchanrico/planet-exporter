@@ -1,7 +1,7 @@
 <h1 align="center">Planet Exporter</h1>
 
 <div align="center">
-  :house_with_garden:
+  <img src="./flow.png" />
 </div>
 <div align="center">
   <strong>Know your dependencies!</strong>
