@@ -49,6 +49,9 @@ func main() {
 	flag.BoolVar(&config.TaskDarkstatEnabled, "task-darkstat-enabled", false, "Enable darkstat collector task")
 	flag.StringVar(&config.TaskDarkstatAddr, "task-darkstat-addr", "", "Darkstat target address")
 
+	flag.BoolVar(&config.TaskEbpfEnabled, "task-ebpf-enabled", false, "Enable Ebpf collector task")
+	flag.StringVar(&config.TaskEbpfAddr, "task-ebpf-addr", "http://localhost:9435/metrics", "Ebpf target address")
+
 	flag.BoolVar(&config.TaskInventoryEnabled, "task-inventory-enabled", false, "Enable inventory collector task")
 	flag.StringVar(&config.TaskInventoryAddr, "task-inventory-addr", "", "Darkstat target address")
 

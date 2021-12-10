@@ -27,6 +27,7 @@ import (
 
 	"planet-exporter/collector"
 	taskdarkstat "planet-exporter/collector/task/darkstat"
+	taskebpf "planet-exporter/collector/task/ebpf"
 	taskinventory "planet-exporter/collector/task/inventory"
 	tasksocketstat "planet-exporter/collector/task/socketstat"
 	"planet-exporter/server"
@@ -54,6 +55,9 @@ type Config struct {
 
 	TaskInventoryEnabled bool
 	TaskInventoryAddr    string // InventoryAddr url for inventory hostgroup mapping table data
+
+	TaskEbpfEnabled bool
+	TaskEbpfAddr    string // TaskEbpfAddr url for scraping the ebpf data
 
 	TaskSocketstatEnabled bool
 }
@@ -155,6 +159,9 @@ func (s Service) collect(ctx context.Context, interval time.Duration) {
 	log.Infof("Task Darkstat: %v", s.Config.TaskDarkstatEnabled)
 	taskdarkstat.InitTask(ctx, s.Config.TaskDarkstatEnabled, s.Config.TaskDarkstatAddr)
 
+	log.Infof("Task ebpf: %v", s.Config.TaskEbpfEnabled)
+	taskebpf.InitTask(ctx, s.Config.TaskEbpfEnabled, s.Config.TaskEbpfAddr)
+
 	log.Infof("Task Inventory: %v", s.Config.TaskInventoryEnabled)
 	taskinventory.InitTask(ctx, s.Config.TaskInventoryEnabled, s.Config.TaskInventoryAddr)
 
@@ -171,6 +178,10 @@ func (s Service) collect(ctx context.Context, interval time.Duration) {
 		err := taskdarkstat.Collect(ctx)
 		if err != nil {
 			log.Errorf("Darkstat collect failed: %v", err)
+		}
+		err = taskebpf.Collect(ctx)
+		if err != nil {
+			log.Errorf("EBPF collect failed: %v", err)
 		}
 		err = tasksocketstat.Collect(ctx)
 		if err != nil {

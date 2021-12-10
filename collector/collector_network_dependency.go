@@ -16,6 +16,7 @@ package collector
 
 import (
 	"planet-exporter/collector/task/darkstat"
+	"planet-exporter/collector/task/ebpf"
 	"planet-exporter/collector/task/inventory"
 	"planet-exporter/collector/task/socketstat"
 
@@ -28,6 +29,7 @@ type networkDependencyCollector struct {
 	upstream        *prometheus.Desc
 	downstream      *prometheus.Desc
 	traffic         *prometheus.Desc
+	ebpfTraffic     *prometheus.Desc
 }
 
 func init() {
@@ -48,6 +50,11 @@ func NewNetworkDependencyCollector() (Collector, error) {
 			"Total network traffic with peers",
 			[]string{"local_hostgroup", "direction", "remote_hostgroup", "remote_ip", "local_domain", "remote_domain"}, nil,
 		),
+		ebpfTraffic: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "ebpf_traffic_bytes_total"),
+			"Total network traffic with peers from ebpf_exporter",
+			[]string{"local_hostgroup", "direction", "remote_hostgroup", "remote_ip", "local_domain", "remote_domain"}, nil,
+		),
 		upstream: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "upstream"),
 			"Upstream dependency of this machine",
@@ -64,11 +71,16 @@ func NewNetworkDependencyCollector() (Collector, error) {
 // Update implements the Collector interface
 func (c networkDependencyCollector) Update(ch chan<- prometheus.Metric) error {
 	traffic := darkstat.Get()
+	ebpf := ebpf.Get()
 	serverProcesses, upstreams, downstreams := socketstat.Get()
 	localInventory := inventory.GetLocalInventory()
 
 	for _, m := range traffic {
 		ch <- prometheus.MustNewConstMetric(c.traffic, prometheus.GaugeValue, m.Bandwidth,
+			m.LocalHostgroup, m.Direction, m.RemoteHostgroup, m.RemoteIPAddr, m.LocalDomain, m.RemoteDomain)
+	}
+	for _, m := range ebpf {
+		ch <- prometheus.MustNewConstMetric(c.ebpfTraffic, prometheus.GaugeValue, m.Bandwidth,
 			m.LocalHostgroup, m.Direction, m.RemoteHostgroup, m.RemoteIPAddr, m.LocalDomain, m.RemoteDomain)
 	}
 	for _, m := range upstreams {
