@@ -18,8 +18,10 @@ package ebpf
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
+	"net/http"
 	"planet-exporter/collector/task/inventory"
 	"planet-exporter/pkg/network"
 	"planet-exporter/pkg/prometheus"
@@ -33,8 +35,9 @@ import (
 
 // task that queries ebpf metrics and aggregates them into usable planet metrics.
 type task struct {
-	enabled  bool
-	ebpfAddr string
+	enabled          bool
+	ebpfAddr         string
+	prometheusClient *prometheus.Client
 
 	hosts []Metric
 	mu    sync.Mutex
@@ -53,10 +56,24 @@ const (
 )
 
 func init() {
+	httpTransport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
 	singleton = task{
-		enabled: false,
-		hosts:   []Metric{},
-		mu:      sync.Mutex{},
+		enabled:          false,
+		hosts:            []Metric{},
+		mu:               sync.Mutex{},
+		prometheusClient: prometheus.New(httpTransport),
 	}
 }
 
@@ -100,8 +117,11 @@ func Collect(ctx context.Context) error {
 
 	startTime := time.Now()
 
+	ctxCollect, ctxCollectCancel := context.WithCancel(ctx)
+	defer ctxCollectCancel()
+
 	// Scrape ebpf prometheus endpoint for send_bytes_metric and recv_bytes_metric.
-	ebpfScrape, err := prometheus.Scrape(singleton.ebpfAddr)
+	ebpfScrape, err := singleton.prometheusClient.Scrape(ctxCollect, singleton.ebpfAddr)
 	if err != nil {
 		return err
 	}
