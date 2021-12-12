@@ -15,8 +15,11 @@
 package prometheus
 
 import (
+	"context"
 	"crypto/tls"
+	"net"
 	"net/http"
+	"time"
 
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/prom2json"
@@ -25,17 +28,44 @@ import (
 // TODO: Complete package
 // e.g. abstract prom2json data structures and maybe share http client
 
-// Scrape metrics from a prometheus HTTP endpoint
-func Scrape(url string) ([]*prom2json.Family, error) {
+// Client for Prometheus endpoints
+type Client struct {
+	httpTransport *http.Transport
+}
+
+// New Prometheus client used to consume Prometheus metrics endpoints
+func New(httpTransport *http.Transport) *Client {
+	if httpTransport == nil {
+		// Use sane defaults from http.DefaultTransport
+		httpTransport = &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+			ExpectContinueTimeout: 1 * time.Second,
+		}
+	}
+
+	return &Client{
+		httpTransport: httpTransport,
+	}
+}
+
+// Scrape metrics from a Prometheus HTTP endpoint
+func (c *Client) Scrape(ctx context.Context, url string) ([]*prom2json.Family, error) {
 	var err error
 
 	mfChan := make(chan *dto.MetricFamily, 1024)
 
-	transport, err := makeTransport()
 	if err != nil {
 		return nil, err
 	}
-	err = prom2json.FetchMetricFamilies(url, mfChan, transport)
+	err = prom2json.FetchMetricFamilies(url, mfChan, c.httpTransport)
 	if err != nil {
 		return nil, err
 	}
@@ -46,11 +76,4 @@ func Scrape(url string) ([]*prom2json.Family, error) {
 	}
 
 	return result, nil
-}
-
-func makeTransport() (*http.Transport, error) {
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	return transport, nil
 }

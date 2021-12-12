@@ -16,8 +16,10 @@ package darkstat
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
+	"net/http"
 	"planet-exporter/collector/task/inventory"
 	"planet-exporter/pkg/network"
 	"planet-exporter/pkg/prometheus"
@@ -31,8 +33,9 @@ import (
 
 // task that queries darkstat metrics and aggregates them into usable planet metrics
 type task struct {
-	enabled      bool
-	darkstatAddr string
+	enabled          bool
+	darkstatAddr     string
+	prometheusClient *prometheus.Client
 
 	hosts []Metric
 	mu    sync.Mutex
@@ -44,10 +47,24 @@ var (
 )
 
 func init() {
+	httpTransport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
 	singleton = task{
-		enabled: false,
-		hosts:   []Metric{},
-		mu:      sync.Mutex{},
+		enabled:          false,
+		hosts:            []Metric{},
+		mu:               sync.Mutex{},
+		prometheusClient: prometheus.New(httpTransport),
 	}
 }
 
@@ -91,6 +108,9 @@ func Collect(ctx context.Context) error {
 
 	startTime := time.Now()
 
+	ctxCollect, ctxCollectCancel := context.WithCancel(ctx)
+	defer ctxCollectCancel()
+
 	inventoryHosts := inventory.Get()
 
 	localAddr, err := network.DefaultLocalAddr()
@@ -109,7 +129,7 @@ func Collect(ctx context.Context) error {
 
 	// Scrape darkstat prometheus endpoint for host_bytes_total
 	var darkstatHostBytesTotal *prom2json.Family
-	darkstatScrape, err := prometheus.Scrape(singleton.darkstatAddr)
+	darkstatScrape, err := singleton.prometheusClient.Scrape(ctxCollect, singleton.darkstatAddr)
 	if err != nil {
 		return err
 	}
