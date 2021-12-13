@@ -49,10 +49,10 @@ var (
 )
 
 const (
-	send_bytes = "ebpf_exporter_ipv4_send_bytes"
-	recv_bytes = "ebpf_exporter_ipv4_recv_bytes"
-	ingress    = "ingress"
-	egress     = "egress"
+	sendBytes = "ebpf_exporter_ipv4_send_bytes"
+	recvBytes = "ebpf_exporter_ipv4_recv_bytes"
+	ingress   = "ingress"
+	egress    = "egress"
 )
 
 func init() {
@@ -125,33 +125,33 @@ func Collect(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	var send_bytes_metric *prom2json.Family
-	var recv_bytes_metric *prom2json.Family
+	var sendBytesMetric *prom2json.Family
+	var recvBytesMetric *prom2json.Family
 	for _, v := range ebpfScrape {
-		if v.Name == send_bytes {
-			send_bytes_metric = v
+		if v.Name == sendBytes {
+			sendBytesMetric = v
 		}
-		if v.Name == recv_bytes {
-			recv_bytes_metric = v
+		if v.Name == recvBytes {
+			recvBytesMetric = v
 		}
-		if send_bytes_metric != nil && recv_bytes_metric != nil {
+		if sendBytesMetric != nil && recvBytesMetric != nil {
 			break
 		}
 	}
-	if send_bytes_metric == nil {
-		return fmt.Errorf("Metric %v doesn't exist", send_bytes)
+	if sendBytesMetric == nil {
+		return fmt.Errorf("Metric %v doesn't exist", sendBytes)
 	}
-	if recv_bytes_metric == nil {
-		return fmt.Errorf("Metric %v doesn't exist", recv_bytes)
+	if recvBytesMetric == nil {
+		return fmt.Errorf("Metric %v doesn't exist", recvBytes)
 	}
 
-	sendHostBytes, err := toHostMetrics(send_bytes_metric, egress)
+	sendHostBytes, err := toHostMetrics(sendBytesMetric, egress)
 	if err != nil {
-		log.Errorf("Conversion to host metric failed for %v, err: %v", send_bytes, err)
+		log.Errorf("Conversion to host metric failed for %v, err: %v", sendBytes, err)
 	}
-	recvHostBytes, err := toHostMetrics(recv_bytes_metric, ingress)
+	recvHostBytes, err := toHostMetrics(recvBytesMetric, ingress)
 	if err != nil {
-		log.Errorf("Conversion to host metric failed for %v, err: %v", recv_bytes, err)
+		log.Errorf("Conversion to host metric failed for %v, err: %v", recvBytes, err)
 	}
 
 	singleton.mu.Lock()
@@ -164,7 +164,7 @@ func Collect(ctx context.Context) error {
 }
 
 // toHostMetrics converts ebpf metrics into planet explorer prometheus metrics.
-func toHostMetrics(bytes_metric *prom2json.Family, direction string) ([]Metric, error) {
+func toHostMetrics(bytesMetric *prom2json.Family, direction string) ([]Metric, error) {
 	var hosts []Metric
 	inventoryHosts := inventory.Get()
 
@@ -183,11 +183,11 @@ func toHostMetrics(bytes_metric *prom2json.Family, direction string) ([]Metric, 
 	}
 	log.Debugf("Local address doesn't exist in the inventory: %v", localAddr.String())
 
-	for _, m := range bytes_metric.Metrics {
+	for _, m := range bytesMetric.Metrics {
 		metric := m.(prom2json.Metric)
-		destIp := net.ParseIP(metric.Labels["daddr"])
+		destIP := net.ParseIP(metric.Labels["daddr"])
 
-		if destIp.Equal(localAddr) || destIp.Equal(nil) {
+		if destIP.Equal(localAddr) || destIP.Equal(nil) {
 			continue
 		}
 
