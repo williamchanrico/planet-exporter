@@ -76,12 +76,18 @@ Usage of planet-exporter:
         Darkstat target address
   -task-darkstat-enabled
         Enable darkstat collector task
+  -task-ebpf-addr string
+        Ebpf target address (default "http://localhost:9435/metrics")
+  -task-ebpf-enabled
+        Enable Ebpf collector task
   -task-interval string
         Interval between collection of expensive data into memory (default "7s")
   -task-inventory-addr string
-        Darkstat target address
+        HTTP endpoint that returns the inventory data
   -task-inventory-enabled
         Enable inventory collector task
+  -task-inventory-format string
+        Inventory format to parse the returned inventory data (default "arrayjson")
   -task-socketstat-enabled
         Enable socketstat collector task (default true)
   -version
@@ -94,7 +100,7 @@ Running with minimum collector tasks (just the socketstat)
 # planet-exporter
 ```
 
-Running with inventory and darkstat (installed separately rev >= [e7e6652](https://www.unix4lyfe.org/gitweb/darkstat/commit/e7e6652113099e33930ab0f39630bf280e38f769))
+Running with inventory and darkstat (darkstat has to be installed separately rev >= [e7e6652](https://www.unix4lyfe.org/gitweb/darkstat/commit/e7e6652113099e33930ab0f39630bf280e38f769))
 
 ```
 # planet-exporter \
@@ -102,6 +108,15 @@ Running with inventory and darkstat (installed separately rev >= [e7e6652](https
     -task-inventory-addr http://link-to-your.net/inventory_hosts.json \
     -task-darkstat-enabled \
     -task-darkstat-addr http://localhost:51666/metrics
+```
+
+Running with another inventory format
+
+```
+# planet-exporter \
+    -task-inventory-enabled \
+    -task-inventory-format "ndjson" \
+    -task-inventory-addr http://link-to-your.net/inventory_hosts.json
 ```
 
 ### Collector Tasks
@@ -112,7 +127,9 @@ Query inventory data to map IP into `hostgroup` (an identifier based on ansible 
 
 Without this task enabled, those hostgroup and domain fields will be left empty.
 
-The flag `--task-inventory-addr` should contain an http url to an array of json objects:
+The flag `--task-inventory-addr` should contain an HTTP endpoint that returns inventory data in the supported format:
+
+##### --task-inventory-format=arrayjson
 
 ```json
 [
@@ -127,6 +144,13 @@ The flag `--task-inventory-addr` should contain an http url to an array of json 
     "hostgroup": "debugapp"
   }
 ]
+```
+
+##### --task-inventory-format=ndjson
+
+```json
+{"ip_address":"10.0.1.2","domain":"xyz.service.consul","hostgroup":"xyz"}
+{"ip_address":"172.16.1.2","domain":"abc.service.consul","hostgroup":"abc"}
 ```
 
 #### Socketstat

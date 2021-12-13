@@ -1,0 +1,12 @@
+[
+  {
+    "ip_address": "10.0.1.2",
+    "domain": "xyz.service.consul",
+    "hostgroup": "xyz"
+  },
+  {
+    "ip_address": "172.16.1.2",
+    "domain": "abc.service.consul",
+    "hostgroup": "abc"
+  }
+]

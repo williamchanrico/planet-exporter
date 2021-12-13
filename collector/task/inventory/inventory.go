@@ -30,8 +30,9 @@ import (
 
 // task that queries inventory data and aggregates them into usable mapping table
 type task struct {
-	enabled       bool
-	inventoryAddr string
+	enabled         bool
+	inventoryAddr   string
+	inventoryFormat string
 
 	mu         sync.Mutex
 	values     map[string]Host
@@ -41,6 +42,11 @@ type task struct {
 var (
 	once      sync.Once
 	singleton task
+
+	supportedInventoryFormats = map[string]bool{
+		"arrayjson": true,
+		"ndjson":    true,
+	}
 )
 
 const (
@@ -59,10 +65,18 @@ func init() {
 }
 
 // InitTask initial states
-func InitTask(ctx context.Context, enabled bool, inventoryAddr string) {
+func InitTask(ctx context.Context, enabled bool, inventoryAddr string, inventoryFormat string) {
+	// Validate inventory format
+	if _, ok := supportedInventoryFormats[inventoryFormat]; !ok {
+		log.Warningf("Unsupported inventory format '%v', fallback to the default format", inventoryFormat)
+		inventoryFormat = "arrayjson"
+	}
+	log.Infof("Using inventory format '%v'", inventoryFormat)
+
 	once.Do(func() {
 		singleton.enabled = enabled
 		singleton.inventoryAddr = inventoryAddr
+		singleton.inventoryFormat = inventoryFormat
 	})
 }
 
@@ -107,16 +121,9 @@ func Collect(ctx context.Context) error {
 	}
 	defer response.Body.Close()
 
-	var metrics []Host
-	decoder := json.NewDecoder(response.Body)
-	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&metrics)
+	metrics, err := parseInventory(singleton.inventoryFormat, response.Body)
 	if err != nil {
 		return err
-	}
-	if decoder.More() {
-		bytesCopied, _ := io.Copy(ioutil.Discard, response.Body)
-		log.Warnf("Unexpected remaining data (%v Bytes) in inventory response: %v", bytesCopied, singleton.inventoryAddr)
 	}
 
 	hosts := make(map[string]Host)
@@ -152,4 +159,39 @@ func GetLocalInventory() Host {
 	singleton.mu.Unlock()
 
 	return inv
+}
+
+func parseInventory(format string, inventoryData io.ReadCloser) ([]Host, error) {
+	var result []Host
+
+	decoder := json.NewDecoder(inventoryData)
+	decoder.DisallowUnknownFields()
+
+	switch format {
+	case "ndjson":
+		inventoryEntry := Host{}
+		for decoder.More() {
+			err := decoder.Decode(&inventoryEntry)
+			if err != nil {
+				log.Errorf("Skip an inventory entry due to parser error: %v", err)
+				continue
+			}
+			result = append(result, inventoryEntry)
+		}
+
+	case "arrayjson":
+		err := decoder.Decode(&result)
+		if err != nil {
+			return nil, err
+		}
+
+		// We expect a single JSON array object here. Clear unexpected data that's left in the io.ReadCloser
+		if decoder.More() {
+			bytesCopied, _ := io.Copy(ioutil.Discard, inventoryData)
+			log.Warnf("Unexpected remaining data (%v Bytes) in inventory response: %v", bytesCopied, singleton.inventoryAddr)
+		}
+	}
+	log.Debugf("Parsed %v inventory data", len(result))
+
+	return result, nil
 }

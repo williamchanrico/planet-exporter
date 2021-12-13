@@ -55,6 +55,7 @@ type Config struct {
 
 	TaskInventoryEnabled bool
 	TaskInventoryAddr    string // InventoryAddr url for inventory hostgroup mapping table data
+	TaskInventoryFormat  string // InventoryFormat returned by inventory address [jsonarray,ndjson]
 
 	TaskEbpfEnabled bool
 	TaskEbpfAddr    string // TaskEbpfAddr url for scraping the ebpf data
@@ -163,7 +164,7 @@ func (s Service) collect(ctx context.Context, interval time.Duration) {
 	taskebpf.InitTask(ctx, s.Config.TaskEbpfEnabled, s.Config.TaskEbpfAddr)
 
 	log.Infof("Task Inventory: %v", s.Config.TaskInventoryEnabled)
-	taskinventory.InitTask(ctx, s.Config.TaskInventoryEnabled, s.Config.TaskInventoryAddr)
+	taskinventory.InitTask(ctx, s.Config.TaskInventoryEnabled, s.Config.TaskInventoryAddr, s.Config.TaskInventoryFormat)
 
 	log.Infof("Task Socketstat: %v", s.Config.TaskSocketstatEnabled)
 	tasksocketstat.InitTask(ctx, s.Config.TaskSocketstatEnabled)

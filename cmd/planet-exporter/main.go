@@ -53,7 +53,8 @@ func main() {
 	flag.StringVar(&config.TaskEbpfAddr, "task-ebpf-addr", "http://localhost:9435/metrics", "Ebpf target address")
 
 	flag.BoolVar(&config.TaskInventoryEnabled, "task-inventory-enabled", false, "Enable inventory collector task")
-	flag.StringVar(&config.TaskInventoryAddr, "task-inventory-addr", "", "Darkstat target address")
+	flag.StringVar(&config.TaskInventoryAddr, "task-inventory-addr", "", "HTTP endpoint that returns the inventory data")
+	flag.StringVar(&config.TaskInventoryFormat, "task-inventory-format", "arrayjson", "Inventory format to parse the returned inventory data")
 
 	flag.Parse()
 
