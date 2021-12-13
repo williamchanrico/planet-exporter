@@ -111,11 +111,46 @@ func Collect(ctx context.Context) error {
 	ctxCollect, ctxCollectCancel := context.WithCancel(ctx)
 	defer ctxCollectCancel()
 
+	// Scrape darkstat prometheus endpoint for host_bytes_total
+	var darkstatHostBytesTotalMetric *prom2json.Family
+	darkstatScrape, err := singleton.prometheusClient.Scrape(ctxCollect, singleton.darkstatAddr)
+	if err != nil {
+		return err
+	}
+	for _, v := range darkstatScrape {
+		if v.Name == "host_bytes_total" {
+			darkstatHostBytesTotalMetric = v
+			break
+		}
+	}
+	if darkstatHostBytesTotalMetric == nil {
+		return fmt.Errorf("Metric host_bytes_total doesn't exist")
+	}
+
+	// Extract relevant data out of host_bytes_total
+	hosts, err := toHostMetrics(darkstatHostBytesTotalMetric)
+	if err != nil {
+		return err
+	}
+
+	singleton.mu.Lock()
+	singleton.hosts = hosts
+	singleton.mu.Unlock()
+
+	log.Debugf("taskdarkstat.Collect retrieved %v downstreams metrics", len(hosts))
+	log.Debugf("taskdarkstat.Collect process took %v", time.Since(startTime))
+	return nil
+}
+
+// toHostMetrics converts darkstatHostBytesTotal metrics into planet explorer prometheus metrics.
+func toHostMetrics(darkstatHostBytesTotal *prom2json.Family) ([]Metric, error) {
+	var hosts []Metric
+
 	inventoryHosts := inventory.Get()
 
 	localAddr, err := network.DefaultLocalAddr()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// To label source traffic that we need to build dependency graph
 	localHostgroup := localAddr.String()
@@ -127,31 +162,13 @@ func Collect(ctx context.Context) error {
 	}
 	log.Debugf("Local address don't exist in inventory: %v", localAddr.String())
 
-	// Scrape darkstat prometheus endpoint for host_bytes_total
-	var darkstatHostBytesTotal *prom2json.Family
-	darkstatScrape, err := singleton.prometheusClient.Scrape(ctxCollect, singleton.darkstatAddr)
-	if err != nil {
-		return err
-	}
-	for _, v := range darkstatScrape {
-		if v.Name == "host_bytes_total" {
-			darkstatHostBytesTotal = v
-			break
-		}
-	}
-	if darkstatHostBytesTotal == nil {
-		return fmt.Errorf("Metric host_bytes_total doesn't exist")
-	}
-
-	// Extract relevant data out of host_bytes_total
-	var hosts []Metric
 	for _, m := range darkstatHostBytesTotal.Metrics {
 		metric := m.(prom2json.Metric)
 
 		ip := net.ParseIP(metric.Labels["ip"])
 
 		// Skip its own IP as we don't need it
-		if ip.Equal(localAddr) {
+		if ip.Equal(nil) || ip.Equal(localAddr) {
 			continue
 		}
 
@@ -183,11 +200,5 @@ func Collect(ctx context.Context) error {
 		})
 	}
 
-	singleton.mu.Lock()
-	singleton.hosts = hosts
-	singleton.mu.Unlock()
-
-	log.Debugf("taskdarkstat.Collect retrieved %v downstreams metrics", len(hosts))
-	log.Debugf("taskdarkstat.Collect process took %v", time.Since(startTime))
-	return nil
+	return hosts, nil
 }
