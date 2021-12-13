@@ -1,0 +1,24 @@
+[Unit]
+Description=Planet Exporter
+After=network-online.target
+
+[Service]
+User=root
+ExecStart=/usr/bin/planet-exporter \
+	-listen-address 0.0.0.0:11910 \
+	-log-level info \
+	-log-disable-colors \
+	-log-disable-timestamp \
+	-task-darkstat-enabled=true \
+	-task-darkstat-addr http://127.0.0.1:11560/metrics \
+	-task-inventory-enabled=true \
+	-task-inventory-addr https://s3-ap-southeast-1.amazonaws.com/example/inventory.json
+LimitNOFILE=8192
+CPUQuota=20%
+MemoryHigh=256M
+MemoryMax=512M
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
