@@ -187,7 +187,7 @@ func toHostMetrics(bytesMetric *prom2json.Family, direction string) ([]Metric, e
 		metric := m.(prom2json.Metric)
 		destIP := net.ParseIP(metric.Labels["daddr"])
 
-		if destIP.Equal(localAddr) || destIP.Equal(nil) {
+		if destIP.Equal(nil) || destIP.Equal(localAddr) {
 			continue
 		}
 
