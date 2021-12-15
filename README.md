@@ -60,7 +60,7 @@ Grab a pre-built binary for your OS from the [Releases](https://github.com/willi
 
 Flags:
 
-There's no required flags. It is configured with usable defaults.
+There are no required flags. It is configured with usable defaults.
 
 ```
 Usage of planet-exporter:
@@ -102,21 +102,35 @@ Running with minimum collector tasks (just the socketstat)
 
 Running with inventory and darkstat (darkstat has to be installed separately rev >= [e7e6652](https://www.unix4lyfe.org/gitweb/darkstat/commit/e7e6652113099e33930ab0f39630bf280e38f769))
 
-```
-# planet-exporter \
-    -task-inventory-enabled \
-    -task-inventory-addr http://link-to-your.net/inventory_hosts.json \
-    -task-darkstat-enabled \
-    -task-darkstat-addr http://localhost:51666/metrics
+```sh
+planet-exporter \
+  -task-inventory-enabled \
+  -task-inventory-addr http://link-to-your.net/inventory_hosts.json \
+  -task-darkstat-enabled \
+  -task-darkstat-addr http://localhost:51666/metrics
 ```
 
 Running with another inventory format
 
+```sh
+planet-exporter \
+  -task-inventory-enabled \
+  -task-inventory-format "ndjson" \
+  -task-inventory-addr http://link-to-your.net/inventory_hosts.json
 ```
-# planet-exporter \
-    -task-inventory-enabled \
-    -task-inventory-format "ndjson" \
-    -task-inventory-addr http://link-to-your.net/inventory_hosts.json
+
+Running with ebpf and custom inventory
+
+* Follow instructions on https://github.com/cloudflare/ebpf_exporter to start ebpf_exporter with [tcptop.yaml](setup/ebpf-config/tcptop.yaml) configuration.
+
+* Run planet-exporter with ebpf enabled:
+
+```sh
+planet-exporter \
+  -task-ebpf-enabled \
+  -task-inventory-enabled \
+  -task-inventory-format "ndjson" \
+  -task-inventory-addr http://link-to-your.net/inventory_hosts.json
 ```
 
 ### Collector Tasks
@@ -216,6 +230,10 @@ planet_traffic_bytes_total{direction="egress",remote_domain="debugapp.service.co
 planet_traffic_bytes_total{direction="ingress",remote_domain="xyz.service.consul",remote_hostgroup="xyz",remote_ip="10.1.2.3"} 2525
 planet_traffic_bytes_total{direction="ingress",remote_domain="debugapp.service.consul",remote_hostgroup="debugapp",remote_ip="10.2.3.4"} 1.26014316e+08
 ```
+
+#### eBPF-exporter
+
+Planet exporter can be used along with [ebpf-exporter](https://github.com/cloudflare/ebpf_exporter) to extract packet flow information directly from kernel. PE currently supports reading prometheus data with [tcptop.yaml](setup/ebpf-config/tcptop.yaml) ebpf configuration. Checkout [ebpf-exporter](https://github.com/cloudflare/ebpf_exporter) instructions to run it with [tcptop.yaml](setup/ebpf-config/tcptop.yaml).
 
 ## Exporter Cost
 
