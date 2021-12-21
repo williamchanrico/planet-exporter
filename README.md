@@ -137,11 +137,12 @@ planet-exporter \
 
 #### Inventory
 
-Query inventory data to map IP into `hostgroup` (an identifier based on ansible convention) and `domain`.
+Query inventory data that will be used to map `ip_address` into `hostgroup` (an identifier based on Ansible convention) and `domain`.
+The `ip_address` may use CIDR notation (e.g. "10.1.0.0/16") and Inventory task will use the longest-prefix match.
 
-Without this task enabled, those hostgroup and domain fields will be left empty.
+Without this task enabled, those hostgroup and domain fields will be empty.
 
-The flag `--task-inventory-addr` should contain an HTTP endpoint that returns inventory data in the supported format:
+The flag `--task-inventory-addr` accepts an HTTP endpoint that returns inventory data in the supported format:
 
 ##### --task-inventory-format=arrayjson
 
@@ -156,6 +157,11 @@ The flag `--task-inventory-addr` should contain an HTTP endpoint that returns in
     "ip_address": "10.2.3.4",
     "domain": "debugapp.service.consul",
     "hostgroup": "debugapp"
+  },
+  {
+    "ip_address": "10.3.0.0/16",
+    "domain": "",
+    "hostgroup": "unknown-but-its-network-xyz"
   }
 ]
 ```
@@ -165,6 +171,7 @@ The flag `--task-inventory-addr` should contain an HTTP endpoint that returns in
 ```json
 {"ip_address":"10.0.1.2","domain":"xyz.service.consul","hostgroup":"xyz"}
 {"ip_address":"172.16.1.2","domain":"abc.service.consul","hostgroup":"abc"}
+{"ip_address":"10.3.0.0/16","domain":"","hostgroup":"unknown-but-its-network-xyz"}
 ```
 
 #### Socketstat
