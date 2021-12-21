@@ -118,27 +118,21 @@ func Collect(ctx context.Context) error {
 	var upstreams []Connections
 	var downstreams []Connections
 	for _, peerConn := range peers {
-		inventoryHosts["127.0.0.1"] = inventory.Host{
-			Domain:    "localhost",
-			Hostgroup: "localhost",
-			IPAddress: "127.0.0.1",
-		}
-
 		if peerConn.LocalIP == "127.0.0.1" {
 			peerConn.LocalIP = defaultLocalAddr.String()
 		}
 
 		var localAddr, localHostgroup, remoteAddr, remoteHostgroup string
-		if localHostInfo, ok := inventoryHosts[peerConn.LocalIP]; ok {
-			localAddr = localHostInfo.Domain
-			localHostgroup = localHostInfo.Hostgroup
+		if localInventoryHost, ok := inventoryHosts.GetHost(peerConn.LocalIP); ok {
+			localAddr = localInventoryHost.Domain
+			localHostgroup = localInventoryHost.Hostgroup
 		}
 		if localAddr == "" {
 			localAddr = peerConn.LocalIP
 		}
-		if remoteHostInfo, ok := inventoryHosts[peerConn.RemoteIP]; ok {
-			remoteAddr = remoteHostInfo.Domain
-			remoteHostgroup = remoteHostInfo.Hostgroup
+		if remoteInventoryHost, ok := inventoryHosts.GetHost(peerConn.RemoteIP); ok {
+			remoteAddr = remoteInventoryHost.Domain
+			remoteHostgroup = remoteInventoryHost.Hostgroup
 
 		}
 		if remoteAddr == "" {

@@ -16,12 +16,11 @@ package inventory
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
+	"net"
 	"net/http"
 	"planet-exporter/pkg/network"
+	"strings"
 	"sync"
 	"time"
 
@@ -35,7 +34,7 @@ type task struct {
 	inventoryFormat string
 
 	mu         sync.Mutex
-	values     map[string]Host
+	values     Inventory
 	httpClient *http.Client
 }
 
@@ -57,7 +56,10 @@ func init() {
 	singleton = task{
 		enabled: false,
 		mu:      sync.Mutex{},
-		values:  make(map[string]Host),
+		values: Inventory{
+			ipToHosts:      make(map[string]Host),
+			networkToHosts: []ipNetHost{},
+		},
 		httpClient: &http.Client{
 			Timeout: collectTimeout,
 		},
@@ -80,15 +82,8 @@ func InitTask(ctx context.Context, enabled bool, inventoryAddr string, inventory
 	})
 }
 
-// Host contains inventory data
-type Host struct {
-	Domain    string `json:"domain"`
-	Hostgroup string `json:"hostgroup"`
-	IPAddress string `json:"ip_address"`
-}
-
 // Get returns latest metrics from cache.values
-func Get() map[string]Host {
+func Get() Inventory {
 	singleton.mu.Lock()
 	hosts := singleton.values
 	singleton.mu.Unlock()
@@ -111,28 +106,19 @@ func Collect(ctx context.Context) error {
 	collectCtx, cancel := context.WithTimeout(ctx, collectTimeout)
 	defer cancel()
 
-	request, err := http.NewRequestWithContext(collectCtx, http.MethodGet, singleton.inventoryAddr, nil)
+	hosts, err := requestHosts(collectCtx, singleton.httpClient, singleton.inventoryFormat, singleton.inventoryAddr)
 	if err != nil {
 		return err
 	}
-	response, err := singleton.httpClient.Do(request)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-
-	metrics, err := parseInventory(singleton.inventoryFormat, response.Body)
-	if err != nil {
-		return err
-	}
-
-	hosts := make(map[string]Host)
-	for _, v := range metrics {
-		hosts[v.IPAddress] = v
-	}
+	hosts = append(hosts, Host{
+		IPAddress: "127.0.0.1",
+		Domain:    "localhost",
+		Hostgroup: "localhost",
+	})
+	inventory := parseInventory(hosts)
 
 	singleton.mu.Lock()
-	singleton.values = hosts
+	singleton.values = inventory
 	singleton.mu.Unlock()
 
 	log.Debugf("taskinventory.Collect retrieved %v hosts", len(hosts))
@@ -140,58 +126,96 @@ func Collect(ctx context.Context) error {
 	return nil
 }
 
-// GetLocalInventory returns current Host's inventory entry
-func GetLocalInventory() Host {
-	inv := Host{}
-	defaultLocalAddr, err := network.DefaultLocalAddr()
-	if err != nil {
-		return inv
-	}
-
-	hosts := Get()
-
-	singleton.mu.Lock()
-	if h, ok := hosts[defaultLocalAddr.String()]; ok {
-		inv.IPAddress = h.IPAddress
-		inv.Domain = h.Domain
-		inv.Hostgroup = h.Hostgroup
-	}
-	singleton.mu.Unlock()
-
-	return inv
+// ipNetHost represents a mapping between network address to Host info
+type ipNetHost struct {
+	network *net.IPNet
+	host    Host
 }
 
-func parseInventory(format string, inventoryData io.ReadCloser) ([]Host, error) {
-	var result []Host
+// Inventory contains mappings to Host information
+type Inventory struct {
+	// ipToHosts maps between IP to Host info
+	ipToHosts map[string]Host
+	// networkToHosts maps between network (in CIDR notation) to Host info
+	networkToHosts []ipNetHost
+}
 
-	decoder := json.NewDecoder(inventoryData)
-	decoder.DisallowUnknownFields()
+// GetHost returns a Host information based on IP or Network address, in that order.
+func (i Inventory) GetHost(address string) (Host, bool) {
+	// Priority 1: Check direct single IP address match for the address
+	if host, ok := i.ipToHosts[address]; ok {
+		return host, true
+	}
 
-	switch format {
-	case "ndjson":
-		inventoryEntry := Host{}
-		for decoder.More() {
-			err := decoder.Decode(&inventoryEntry)
-			if err != nil {
-				log.Errorf("Skip an inventory entry due to parser error: %v", err)
-				continue
-			}
-			result = append(result, inventoryEntry)
-		}
-
-	case "arrayjson":
-		err := decoder.Decode(&result)
-		if err != nil {
-			return nil, err
-		}
-
-		// We expect a single JSON array object here. Clear unexpected data that's left in the io.ReadCloser
-		if decoder.More() {
-			bytesCopied, _ := io.Copy(ioutil.Discard, inventoryData)
-			log.Warnf("Unexpected remaining data (%v Bytes) in inventory response: %v", bytesCopied, singleton.inventoryAddr)
+	// Priority 2: Check for longest-prefix match with targetIP
+	targetIP := net.ParseIP(address)
+	matchedHost := Host{}
+	matchedPrefixLen := -1
+	for _, ipNetHost := range i.networkToHosts {
+		currPrefixLen, _ := ipNetHost.network.Mask.Size()
+		if ipNetHost.network.Contains(targetIP) && currPrefixLen > matchedPrefixLen {
+			matchedPrefixLen, _ = ipNetHost.network.Mask.Size()
+			matchedHost = ipNetHost.host
 		}
 	}
-	log.Debugf("Parsed %v inventory data", len(result))
+	if matchedPrefixLen >= 0 {
+		return matchedHost, true
+	}
 
-	return result, nil
+	return Host{}, false
+}
+
+// parseInventory parses a list of Host into an Inventory
+// This function supports hosts with IP address containing "/" (CIDR notation).
+func parseInventory(hosts []Host) Inventory {
+	ipToHosts := make(map[string]Host)
+	networkToHosts := []ipNetHost{}
+	for _, host := range hosts {
+		// Skip unknown hosts as they provide zero value for Planet Exporter
+		if host.Domain == "" && host.Hostgroup == "" {
+			continue
+		}
+
+		// For CIDR notation address, we put the mapping in a list of ipNetHost
+		if strings.Contains(host.IPAddress, "/") {
+			_, network, err := net.ParseCIDR(host.IPAddress)
+			if err != nil {
+				log.Debugf("Failed to parse CIDR address from an inventory host entry (address=%v): %v", host.IPAddress, err)
+				continue
+			}
+			networkToHost := ipNetHost{
+				network: network,
+				host:    host,
+			}
+			networkToHosts = append(networkToHosts, networkToHost)
+		} else {
+			// Standard mapping between IP and Host
+			ipToHosts[host.IPAddress] = host
+		}
+
+	}
+
+	return Inventory{
+		ipToHosts:      ipToHosts,
+		networkToHosts: networkToHosts,
+	}
+}
+
+// GetLocalInventory returns current Host's inventory entry
+func GetLocalInventory() Host {
+	localHost := Host{}
+	defaultLocalAddr, err := network.DefaultLocalAddr()
+	if err != nil {
+		return localHost
+	}
+
+	inventory := Get()
+
+	if h, ok := inventory.GetHost(defaultLocalAddr.String()); ok {
+		localHost.IPAddress = h.IPAddress
+		localHost.Domain = h.Domain
+		localHost.Hostgroup = h.Hostgroup
+	}
+
+	return localHost
 }

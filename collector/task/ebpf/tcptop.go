@@ -176,22 +176,25 @@ func toHostMetrics(bytesMetric *prom2json.Family, direction string) ([]Metric, e
 	// To label source traffic that we need to build dependency graph.
 	localHostgroup := localAddr.String()
 	localDomain := localAddr.String()
-	localInventory, ok := inventoryHosts[localAddr.String()]
+	localInventory, ok := inventoryHosts.GetHost(localAddr.String())
 	if ok {
 		localHostgroup = localInventory.Hostgroup
 		localDomain = localInventory.Domain
+	} else {
+		log.Warnf("Local address doesn't exist in the inventory: %v", localAddr.String())
 	}
-	log.Debugf("Local address doesn't exist in the inventory: %v", localAddr.String())
 
 	for _, m := range bytesMetric.Metrics {
 		metric := m.(prom2json.Metric)
-		destIP := net.ParseIP(metric.Labels["daddr"])
 
-		if destIP.Equal(nil) || destIP.Equal(localAddr) {
+		// Skip its own IP.
+		// We're not interested in traffic coming from and going to itself.
+		remoteIP := net.ParseIP(metric.Labels["daddr"])
+		if remoteIP.Equal(nil) || remoteIP.Equal(localAddr) {
 			continue
 		}
 
-		inventoryHostInfo := inventoryHosts[metric.Labels["daddr"]]
+		remoteInventoryHost, _ := inventoryHosts.GetHost(metric.Labels["daddr"])
 
 		bandwidth, err := strconv.ParseFloat(metric.Value, 64)
 		if err != nil {
@@ -201,10 +204,10 @@ func toHostMetrics(bytesMetric *prom2json.Family, direction string) ([]Metric, e
 
 		hosts = append(hosts, Metric{
 			LocalHostgroup:  localHostgroup,
-			RemoteHostgroup: inventoryHostInfo.Hostgroup,
+			RemoteHostgroup: remoteInventoryHost.Hostgroup,
 			RemoteIPAddr:    metric.Labels["daddr"],
 			LocalDomain:     localDomain,
-			RemoteDomain:    inventoryHostInfo.Domain,
+			RemoteDomain:    remoteInventoryHost.Domain,
 			Direction:       direction,
 			Bandwidth:       bandwidth,
 		})
