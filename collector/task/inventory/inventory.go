@@ -158,6 +158,7 @@ func (i Inventory) GetHost(address string) (Host, bool) {
 			matchedHost = ipNetHost.host
 		}
 	}
+	// There is a match when it's greater than 0 (even 0.0.0.0/0)
 	if matchedPrefixLen >= 0 {
 		return matchedHost, true
 	}
