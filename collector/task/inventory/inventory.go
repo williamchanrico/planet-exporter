@@ -154,7 +154,7 @@ func (i Inventory) GetHost(address string) (Host, bool) {
 	for _, ipNetHost := range i.networkToHosts {
 		currPrefixLen, _ := ipNetHost.network.Mask.Size()
 		if ipNetHost.network.Contains(targetIP) && currPrefixLen > matchedPrefixLen {
-			matchedPrefixLen, _ = ipNetHost.network.Mask.Size()
+			matchedPrefixLen = currPrefixLen
 			matchedHost = ipNetHost.host
 		}
 	}
