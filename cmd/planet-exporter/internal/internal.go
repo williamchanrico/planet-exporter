@@ -160,7 +160,7 @@ func (s Service) collect(ctx context.Context, interval time.Duration) {
 	log.Infof("Task Darkstat: %v", s.Config.TaskDarkstatEnabled)
 	taskdarkstat.InitTask(ctx, s.Config.TaskDarkstatEnabled, s.Config.TaskDarkstatAddr)
 
-	log.Infof("Task ebpf: %v", s.Config.TaskEbpfEnabled)
+	log.Infof("Task EBPF: %v", s.Config.TaskEbpfEnabled)
 	taskebpf.InitTask(ctx, s.Config.TaskEbpfEnabled, s.Config.TaskEbpfAddr)
 
 	log.Infof("Task Inventory: %v", s.Config.TaskInventoryEnabled)

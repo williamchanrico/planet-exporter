@@ -3,7 +3,7 @@
 NAME          := planet-exporter
 BIN_DIRECTORY := ./bin
 REVISION      := $(shell git rev-parse --short HEAD 2>/dev/null)
-VERSION       := v0.2.0-dev
+VERSION       := v0.3.0-dev
 
 ifndef REVISION
 	override REVISION = none
@@ -65,6 +65,10 @@ go-build-linux: ## Build the app for linux platforms exclude: "arm64" CGO errors
 		cd ..; \
 	done;
 	@rm -rf $(BIN_DIRECTORY)/$(APP_NAME)
+
+.PHONY: go-test
+go-test: ## Run go test
+	go test -v ./...
 
 # DOCKER TASKS
 # Build the container
