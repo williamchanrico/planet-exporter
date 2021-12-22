@@ -95,61 +95,87 @@ func Collect(ctx context.Context) error {
 	defer cancel()
 
 	// Get server and peers connections
-	servers, peers, err := network.ServerConnections(ctx)
+	serverConnectionStat, err := network.ServerConnections(ctx)
 	if err != nil {
 		return err
 	}
-	listeningServerPorts := make(map[uint32]network.Server)
-	for _, p := range servers {
-		listeningServerPorts[p.Port] = p
-		log.Debugf("Server listening on: %v:%v [process:%v]", p.Address, p.Port, p.ProcessName)
+
+	// Listening server processes
+	serverProcesses := []Process{}
+
+	// Listening server ports
+	listeningPortsConns := make(map[uint32]network.ListeningConnSocket)
+
+	// Iterate over connection sockets that are in LISTEN state
+	for _, v := range serverConnectionStat.ListeningConnSockets {
+		// Build serverProcesses from server LISTEN sockets
+		serverProcesses = append(serverProcesses, Process{
+			Name: v.ProcessName,
+			Bind: fmt.Sprintf("%v:%v", v.LocalIP, v.LocalPort),
+			Port: fmt.Sprint(v.LocalPort),
+		})
+
+		// Build list of listening server ports from server LISTEN sockets
+		listeningPortsConns[v.LocalPort] = v
+		log.Debugf("Server listening on: %v:%v [process:%v]", v.LocalIP, v.LocalPort, v.ProcessName)
 	}
 
 	inventoryHosts := inventory.Get()
 
-	defaultLocalAddr, err := network.DefaultLocalAddr()
+	// Find current IP to replace loop-back address
+	currentIP, err := network.LocalIP()
 	if err != nil {
 		return err
 	}
 
 	exists := make(map[string]bool)
 
-	// Build upstreams and downstreams from every peers
+	// Build upstreams and downstreams from every peered connection sockets (e.g. "ss -pant")
 	var upstreams []Connections
 	var downstreams []Connections
-	for _, peerConn := range peers {
-		if peerConn.LocalIP == "127.0.0.1" {
-			peerConn.LocalIP = defaultLocalAddr.String()
+	for _, peeredConn := range serverConnectionStat.PeeredConnSockets {
+		// Replace localhost or 127.0.0.1 with a more useful current address
+		if peeredConn.LocalIP == "127.0.0.1" {
+			peeredConn.LocalIP = currentIP.String()
 		}
 
-		var localAddr, localHostgroup, remoteAddr, remoteHostgroup string
-		if localInventoryHost, ok := inventoryHosts.GetHost(peerConn.LocalIP); ok {
+		// Find local Host inventory
+		// This should be the same most of the time,
+		// but we find LocalIP's inventory for every peeredConn in case there's interface address spoofing.
+		var localAddr, localHostgroup string
+		if localInventoryHost, foundInventory := inventoryHosts.GetHost(peeredConn.LocalIP); foundInventory {
 			localAddr = localInventoryHost.Domain
 			localHostgroup = localInventoryHost.Hostgroup
 		}
 		if localAddr == "" {
-			localAddr = peerConn.LocalIP
+			localAddr = peeredConn.LocalIP
 		}
-		if remoteInventoryHost, ok := inventoryHosts.GetHost(peerConn.RemoteIP); ok {
+
+		// Find remote Host inventory
+		var remoteAddr, remoteHostgroup string
+		if remoteInventoryHost, foundInventory := inventoryHosts.GetHost(peeredConn.RemoteIP); foundInventory {
 			remoteAddr = remoteInventoryHost.Domain
 			remoteHostgroup = remoteInventoryHost.Hostgroup
 
 		}
 		if remoteAddr == "" {
-			remoteAddr = peerConn.RemoteIP
+			remoteAddr = peeredConn.RemoteIP
 		}
 
-		// If peerConn.localPort is one of the listening port, it's a downstream connection
-		if srv, isListening := listeningServerPorts[peerConn.LocalPort]; isListening {
-			existenceKey := fmt.Sprintf("down_%s_%s_%v_%s", remoteHostgroup, remoteAddr, peerConn.LocalPort, peerConn.Protocol)
+		// Check whether this is a downstream/upstream connection tuple
+		if listeningConn, foundListeningConn := listeningPortsConns[peeredConn.LocalPort]; foundListeningConn {
+			// It's a downstream connection. The peerConn.localPort is one of the listening port.
 
-			// Prevents duplicate entries
+			// To track whether we have considered this downstream connection
+			existenceKey := fmt.Sprintf("down_%s_%s_%v_%s", remoteHostgroup, remoteAddr, peeredConn.LocalPort, peeredConn.Protocol)
+
+			// Prevents duplicate downstream conn entries
 			if _, ok := exists[existenceKey]; !ok {
 
-				// Usually it's from TIME_WAIT socket states that don't have Pids stored
-				// So we put whoever is holding that localPort instead
-				if peerConn.ProcessName == "" {
-					peerConn.ProcessName = srv.ProcessName
+				// Empty process name on a connection socket usually comes from TIME_WAIT state, they don't have PID anymore.
+				// Since we know it's a conn coming to listening port, we set process name to the server process that's listening on that port.
+				if peeredConn.ProcessName == "" {
+					peeredConn.ProcessName = listeningConn.ProcessName
 				}
 
 				downstreams = append(downstreams, Connections{
@@ -157,16 +183,18 @@ func Collect(ctx context.Context) error {
 					RemoteHostgroup: remoteHostgroup,
 					LocalAddress:    localAddr,
 					RemoteAddress:   remoteAddr,
-					Port:            fmt.Sprint(peerConn.LocalPort),
-					Protocol:        peerConn.Protocol,
-					ProcessName:     peerConn.ProcessName,
+					Port:            fmt.Sprint(peeredConn.LocalPort),
+					Protocol:        peeredConn.Protocol,
+					ProcessName:     peeredConn.ProcessName,
 				})
 				exists[existenceKey] = true
 			}
 
 		} else if remoteAddr != "localhost" {
-			remotePort := fmt.Sprint(peerConn.RemotePort)
-			existenceKey := fmt.Sprintf("up_%s_%s_%s_%s", remoteHostgroup, remoteAddr, remotePort, peerConn.Protocol)
+			// It's an upstream connection otherwise.
+
+			remotePort := fmt.Sprint(peeredConn.RemotePort)
+			existenceKey := fmt.Sprintf("up_%s_%s_%s_%s", remoteHostgroup, remoteAddr, remotePort, peeredConn.Protocol)
 
 			if _, ok := exists[existenceKey]; !ok {
 				upstreams = append(upstreams, Connections{
@@ -175,22 +203,12 @@ func Collect(ctx context.Context) error {
 					LocalAddress:    localAddr,
 					RemoteAddress:   remoteAddr,
 					Port:            remotePort,
-					Protocol:        peerConn.Protocol,
-					ProcessName:     peerConn.ProcessName,
+					Protocol:        peeredConn.Protocol,
+					ProcessName:     peeredConn.ProcessName,
 				})
 				exists[existenceKey] = true
 			}
 		}
-	}
-
-	// Build serverProcesses from server LISTEN sockets
-	serverProcesses := []Process{}
-	for _, v := range servers {
-		serverProcesses = append(serverProcesses, Process{
-			Name: v.ProcessName,
-			Bind: fmt.Sprintf("%v:%v", v.Address, v.Port),
-			Port: fmt.Sprint(v.Port),
-		})
 	}
 
 	singleton.mu.Lock()

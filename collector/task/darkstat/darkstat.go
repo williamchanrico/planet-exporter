@@ -148,7 +148,7 @@ func toHostMetrics(darkstatHostBytesTotal *prom2json.Family) ([]Metric, error) {
 
 	inventoryHosts := inventory.Get()
 
-	localAddr, err := network.DefaultLocalAddr()
+	localAddr, err := network.LocalIP()
 	if err != nil {
 		return nil, err
 	}

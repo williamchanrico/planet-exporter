@@ -24,7 +24,8 @@ import (
 	psutilnet "github.com/shirou/gopsutil/net"
 )
 
-type Peer struct {
+// PeeredConnSocket represents connection socket with a peer (sockets in ESTABLISHED and TIME_WAIT states)
+type PeeredConnSocket struct {
 	LocalIP     string
 	LocalPort   uint32
 	RemoteIP    string
@@ -33,19 +34,26 @@ type Peer struct {
 	ProcessName string
 }
 
-type Server struct {
+// ListeningConnSocket represents a connection socket from a listening server process (sockets in LISTEN state)
+type ListeningConnSocket struct {
+	LocalIP     string
+	LocalPort   uint32
 	ProcessPid  int32
 	ProcessName string
-	Address     string
-	Port        uint32
+}
+
+// ServerConnectionStat represents a connection status, similar to netstat or "ss -pant" and "ss -pantl"
+type ServerConnectionStat struct {
+	PeeredConnSockets    []PeeredConnSocket
+	ListeningConnSockets []ListeningConnSocket
 }
 
 // ServerConnections returns LISTENING ports and peer connection tuples that are in ESTABLISHED or TIME_WAIT state
 // Limited to 4096 connections per running process
-func ServerConnections(ctx context.Context) ([]Server, []Peer, error) {
+func ServerConnections(ctx context.Context) (ServerConnectionStat, error) {
 	processTable, err := process.GetProcessTable(ctx)
 	if err != nil {
-		return nil, nil, err
+		return ServerConnectionStat{}, err
 	}
 
 	// "01": "ESTABLISHED",
@@ -53,24 +61,14 @@ func ServerConnections(ctx context.Context) ([]Server, []Peer, error) {
 	// "0A": "LISTEN",
 	allConns, err := psutilnet.ConnectionsMaxWithContext(ctx, "all", 4096)
 	if err != nil {
-		return nil, nil, err
+		return ServerConnectionStat{}, err
 	}
 
 	// Get listening sockets
-	servers := []Server{}
-	for _, conn := range allConns {
-		if conn.Status == "LISTEN" {
-			servers = append(servers, Server{
-				ProcessName: processTable[int(conn.Pid)],
-				ProcessPid:  conn.Pid,
-				Address:     conn.Laddr.IP,
-				Port:        conn.Laddr.Port,
-			})
-		}
-	}
+	listeningConns := []ListeningConnSocket{}
 
-	// Get peer connection sockets
-	peerTuples := []Peer{}
+	// Get connection sockets
+	peeredConns := []PeeredConnSocket{}
 	for _, conn := range allConns {
 		proto := ""
 		switch conn.Type {
@@ -81,25 +79,37 @@ func ServerConnections(ctx context.Context) ([]Server, []Peer, error) {
 		default:
 			proto = ""
 		}
+
 		switch conn.Status {
+		case "LISTEN":
+			listeningConns = append(listeningConns, ListeningConnSocket{
+				LocalIP:     conn.Laddr.IP,
+				LocalPort:   conn.Laddr.Port,
+				ProcessName: processTable[int(conn.Pid)],
+				ProcessPid:  conn.Pid,
+			})
+
 		case "TIME_WAIT", "ESTABLISHED":
-			processName := processTable[int(conn.Pid)]
-			peerTuples = append(peerTuples, Peer{
+			peeredConns = append(peeredConns, PeeredConnSocket{
 				LocalIP:     conn.Laddr.IP,
 				LocalPort:   conn.Laddr.Port,
 				RemoteIP:    conn.Raddr.IP,
 				RemotePort:  conn.Raddr.Port,
 				Protocol:    proto,
-				ProcessName: processName,
+				ProcessName: processTable[int(conn.Pid)],
 			})
 		}
 	}
 
-	return servers, peerTuples, nil
+	return ServerConnectionStat{
+		PeeredConnSockets:    peeredConns,
+		ListeningConnSockets: listeningConns,
+	}, nil
 }
 
-// DefaultLocalAddr returns default local IP address
-func DefaultLocalAddr() (net.IP, error) {
+// LocalIP returns default local IP address
+// Note the "udp" protocol. The net.Dial() call won't actually establish any connection.
+func LocalIP() (net.IP, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:53")
 	if err != nil {
 		return nil, err

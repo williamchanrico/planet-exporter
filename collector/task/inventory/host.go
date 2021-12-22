@@ -40,7 +40,7 @@ func parseHosts(format string, data io.Reader) ([]Host, error) {
 	decoder.DisallowUnknownFields()
 
 	switch format {
-	case "ndjson":
+	case fmtNDJSON:
 		inventoryEntry := Host{}
 		for decoder.More() {
 			err := decoder.Decode(&inventoryEntry)
@@ -51,17 +51,20 @@ func parseHosts(format string, data io.Reader) ([]Host, error) {
 			result = append(result, inventoryEntry)
 		}
 
-	case "arrayjson":
+	case fmtArrayJSON:
 		err := decoder.Decode(&result)
 		if err != nil {
 			return nil, err
 		}
 
-		// We expect a single JSON array object here. Clear unexpected data that's left in the io.ReadCloser
+		// Because we only expect a single JSON array object, we discard unexpected additional data.
 		if decoder.More() {
 			bytesCopied, _ := io.Copy(ioutil.Discard, data)
 			log.Warnf("Unexpected remaining data (%v Bytes) while parsing inventory hosts", bytesCopied)
 		}
+
+	default:
+		return nil, errInvalidInventoryFormat
 	}
 	log.Debugf("Parsed %v inventory hosts", len(result))
 
