@@ -168,20 +168,20 @@ func toHostMetrics(bytesMetric *prom2json.Family, direction string) ([]Metric, e
 	var hosts []Metric
 	inventoryHosts := inventory.Get()
 
-	localAddr, err := network.DefaultLocalAddr()
+	currentIP, err := network.LocalIP()
 	if err != nil {
 		return nil, err
 	}
 
 	// To label source traffic that we need to build dependency graph.
-	localHostgroup := localAddr.String()
-	localDomain := localAddr.String()
-	localInventory, ok := inventoryHosts.GetHost(localAddr.String())
+	localHostgroup := currentIP.String()
+	localDomain := currentIP.String()
+	localInventory, ok := inventoryHosts.GetHost(currentIP.String())
 	if ok {
 		localHostgroup = localInventory.Hostgroup
 		localDomain = localInventory.Domain
 	} else {
-		log.Warnf("Local address doesn't exist in the inventory: %v", localAddr.String())
+		log.Warnf("Local address doesn't exist in the inventory: %v", currentIP.String())
 	}
 
 	for _, m := range bytesMetric.Metrics {
@@ -190,7 +190,7 @@ func toHostMetrics(bytesMetric *prom2json.Family, direction string) ([]Metric, e
 		// Skip its own IP.
 		// We're not interested in traffic coming from and going to itself.
 		remoteIP := net.ParseIP(metric.Labels["daddr"])
-		if remoteIP.Equal(nil) || remoteIP.Equal(localAddr) {
+		if remoteIP.Equal(nil) || remoteIP.Equal(currentIP) {
 			continue
 		}
 

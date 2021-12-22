@@ -216,14 +216,14 @@ func parseInventory(hosts []Host) Inventory {
 // GetLocalInventory returns an inventory entry for current host
 func GetLocalInventory() Host {
 	localHost := Host{}
-	defaultLocalAddr, err := network.DefaultLocalAddr()
+	currentIP, err := network.LocalIP()
 	if err != nil {
 		return localHost
 	}
 
 	inventory := Get()
 
-	if h, ok := inventory.GetHost(defaultLocalAddr.String()); ok {
+	if h, ok := inventory.GetHost(currentIP.String()); ok {
 		localHost.IPAddress = h.IPAddress
 		localHost.Domain = h.Domain
 		localHost.Hostgroup = h.Hostgroup
