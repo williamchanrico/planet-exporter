@@ -94,33 +94,12 @@ func Collect(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// Get server and peers connections
+	// Get server connection stat
 	serverConnectionStat, err := network.ServerConnections(ctx)
 	if err != nil {
 		return err
 	}
-
-	// Listening server processes
-	serverProcesses := []Process{}
-
-	// Listening server ports
-	listeningPortsConns := make(map[uint32]network.ListeningConnSocket)
-
-	// Iterate over connection sockets that are in LISTEN state
-	for _, v := range serverConnectionStat.ListeningConnSockets {
-		// Build serverProcesses from server LISTEN sockets
-		serverProcesses = append(serverProcesses, Process{
-			Name: v.ProcessName,
-			Bind: fmt.Sprintf("%v:%v", v.LocalIP, v.LocalPort),
-			Port: fmt.Sprint(v.LocalPort),
-		})
-
-		// Build list of listening server ports from server LISTEN sockets
-		listeningPortsConns[v.LocalPort] = v
-		log.Debugf("Server listening on: %v:%v [process:%v]", v.LocalIP, v.LocalPort, v.ProcessName)
-	}
-
-	inventoryHosts := inventory.Get()
+	serverProcesses, listeningPortsConns := parseProcessesAndListenPortsConns(serverConnectionStat)
 
 	// Find current IP to replace loop-back address
 	currentIP, err := network.LocalIP()
@@ -128,11 +107,11 @@ func Collect(ctx context.Context) error {
 		return err
 	}
 
-	exists := make(map[string]bool)
-
-	// Build upstreams and downstreams from every peered connection sockets (e.g. "ss -pant")
+	// Upstreams and downstreams from every peered connection sockets (e.g. "ss -pant")
 	var upstreams []Connections
 	var downstreams []Connections
+
+	includedConns := make(map[string]bool)
 	for _, peeredConn := range serverConnectionStat.PeeredConnSockets {
 		// Replace localhost or 127.0.0.1 with a more useful current address
 		if peeredConn.LocalIP == "127.0.0.1" {
@@ -142,72 +121,64 @@ func Collect(ctx context.Context) error {
 		// Find local Host inventory
 		// This should be the same most of the time,
 		// but we find LocalIP's inventory for every peeredConn in case there's interface address spoofing.
-		var localAddr, localHostgroup string
-		if localInventoryHost, foundInventory := inventoryHosts.GetHost(peeredConn.LocalIP); foundInventory {
-			localAddr = localInventoryHost.Domain
-			localHostgroup = localInventoryHost.Hostgroup
-		}
-		if localAddr == "" {
-			localAddr = peeredConn.LocalIP
-		}
+		localAddr, localHostgroup := getInventoryAddrAndHostgroup(peeredConn.LocalIP)
 
 		// Find remote Host inventory
-		var remoteAddr, remoteHostgroup string
-		if remoteInventoryHost, foundInventory := inventoryHosts.GetHost(peeredConn.RemoteIP); foundInventory {
-			remoteAddr = remoteInventoryHost.Domain
-			remoteHostgroup = remoteInventoryHost.Hostgroup
-
-		}
-		if remoteAddr == "" {
-			remoteAddr = peeredConn.RemoteIP
-		}
+		remoteAddr, remoteHostgroup := getInventoryAddrAndHostgroup(peeredConn.RemoteIP)
 
 		// Check whether this is a downstream/upstream connection tuple
 		if listeningConn, foundListeningConn := listeningPortsConns[peeredConn.LocalPort]; foundListeningConn {
 			// It's a downstream connection. The peerConn.localPort is one of the listening port.
 
-			// To track whether we have considered this downstream connection
-			existenceKey := fmt.Sprintf("down_%s_%s_%v_%s", remoteHostgroup, remoteAddr, peeredConn.LocalPort, peeredConn.Protocol)
+			// Since it's a downstream conn, remote port is the listening server port
+			remotePort := fmt.Sprint(peeredConn.LocalPort)
 
+			// To track whether we have considered this connection
+			connString := fmt.Sprintf("down_%s_%s_%v_%s", remoteHostgroup, remoteAddr, peeredConn.LocalPort, peeredConn.Protocol)
 			// Prevents duplicate downstream conn entries
-			if _, ok := exists[existenceKey]; !ok {
-
-				// Empty process name on a connection socket usually comes from TIME_WAIT state, they don't have PID anymore.
-				// Since we know it's a conn coming to listening port, we set process name to the server process that's listening on that port.
-				if peeredConn.ProcessName == "" {
-					peeredConn.ProcessName = listeningConn.ProcessName
-				}
-
-				downstreams = append(downstreams, Connections{
-					LocalHostgroup:  localHostgroup,
-					RemoteHostgroup: remoteHostgroup,
-					LocalAddress:    localAddr,
-					RemoteAddress:   remoteAddr,
-					Port:            fmt.Sprint(peeredConn.LocalPort),
-					Protocol:        peeredConn.Protocol,
-					ProcessName:     peeredConn.ProcessName,
-				})
-				exists[existenceKey] = true
+			if _, ok := includedConns[connString]; ok {
+				continue
 			}
+			includedConns[connString] = true
+
+			// Empty process name on a connection socket usually comes from TIME_WAIT state, they don't have PID anymore.
+			// Since we know it's a conn coming to listening port, we set process name to the server process that's listening on that port.
+			if peeredConn.ProcessName == "" {
+				peeredConn.ProcessName = listeningConn.ProcessName
+			}
+
+			downstreams = append(downstreams, Connections{
+				LocalHostgroup:  localHostgroup,
+				RemoteHostgroup: remoteHostgroup,
+				LocalAddress:    localAddr,
+				RemoteAddress:   remoteAddr,
+				Port:            remotePort,
+				Protocol:        peeredConn.Protocol,
+				ProcessName:     peeredConn.ProcessName,
+			})
 
 		} else if remoteAddr != "localhost" {
 			// It's an upstream connection otherwise.
 
 			remotePort := fmt.Sprint(peeredConn.RemotePort)
-			existenceKey := fmt.Sprintf("up_%s_%s_%s_%s", remoteHostgroup, remoteAddr, remotePort, peeredConn.Protocol)
 
-			if _, ok := exists[existenceKey]; !ok {
-				upstreams = append(upstreams, Connections{
-					LocalHostgroup:  localHostgroup,
-					RemoteHostgroup: remoteHostgroup,
-					LocalAddress:    localAddr,
-					RemoteAddress:   remoteAddr,
-					Port:            remotePort,
-					Protocol:        peeredConn.Protocol,
-					ProcessName:     peeredConn.ProcessName,
-				})
-				exists[existenceKey] = true
+			// To track whether we have considered this connection
+			connString := fmt.Sprintf("up_%s_%s_%s_%s", remoteHostgroup, remoteAddr, remotePort, peeredConn.Protocol)
+			// Prevents duplicate upstream conn entries
+			if _, ok := includedConns[connString]; ok {
+				continue
 			}
+			includedConns[connString] = true
+
+			upstreams = append(upstreams, Connections{
+				LocalHostgroup:  localHostgroup,
+				RemoteHostgroup: remoteHostgroup,
+				LocalAddress:    localAddr,
+				RemoteAddress:   remoteAddr,
+				Port:            remotePort,
+				Protocol:        peeredConn.Protocol,
+				ProcessName:     peeredConn.ProcessName,
+			})
 		}
 	}
 
@@ -221,4 +192,46 @@ func Collect(ctx context.Context) error {
 	log.Debugf("tasksocketstat.Collect retrieved %v downstreams metrics", len(downstreams))
 	log.Debugf("tasksocketstat.Collect process took %v", time.Since(startTime))
 	return nil
+}
+
+// parseProcessesAndListenPortsConns parses listening server processes and connections' ports that are in LISTEN state
+// Listening server processes are used to know what processes may accept downstream connections.
+// Listening connection ports are used to check whether the local port in a given connection tuple is ephemeral or is owned by a server process.
+func parseProcessesAndListenPortsConns(serverConnectionStat network.ServerConnectionStat) ([]Process, map[uint32]network.ListeningConnSocket) {
+	// Listening server processes
+	processes := []Process{}
+
+	// Listening server ports
+	listeningPortsConns := make(map[uint32]network.ListeningConnSocket)
+
+	// Iterate over connection sockets that are in LISTEN state
+	for _, v := range serverConnectionStat.ListeningConnSockets {
+		// Build serverProcesses from server LISTEN sockets
+		processes = append(processes, Process{
+			Name: v.ProcessName,
+			Bind: fmt.Sprintf("%v:%v", v.LocalIP, v.LocalPort),
+			Port: fmt.Sprint(v.LocalPort),
+		})
+
+		// Build list of listening server ports from server LISTEN sockets
+		listeningPortsConns[v.LocalPort] = v
+		log.Debugf("Server listening on: %v:%v [process:%v]", v.LocalIP, v.LocalPort, v.ProcessName)
+	}
+
+	return processes, listeningPortsConns
+}
+
+// getInventoryAddrAndHostgroup returns address/domain and hostgroup of the given IP based on inventory data
+func getInventoryAddrAndHostgroup(ip string) (string, string) {
+	inventoryHosts := inventory.Get()
+
+	var addr, hostgroup string
+	if host, found := inventoryHosts.GetHost(ip); found {
+		addr = host.Domain
+		hostgroup = host.Hostgroup
+	}
+	if addr == "" {
+		addr = ip
+	}
+	return addr, hostgroup
 }
