@@ -39,24 +39,41 @@
   </a>
 </div>
 
-## Introduction
+## Table of Content
 
-The goal is to determine every servers' dependencies (upstream/downstream) along with bandwidth required for those dependencies.
+  * [Introduction](#introduction)
+  * [Installation](#installation)
+  * [Configuration](#configuration)
+  * [Project Structure](#project-structure)
+  * [Collector Tasks](#collector-tasks)
+    + [Inventory](#inventory)
+      - [Inventory Formats](#inventory-formats)
+        * [--task-inventory-format=arrayjson](#--task-inventory-format-arrayjson)
+        * [--task-inventory-format=ndjson](#--task-inventory-format-ndjson)
+    + [Socketstat](#socketstat)
+    + [Darkstat](#darkstat)
+    + [EBPF Exporter](#ebpf-exporter)
+  * [Exporter Cost](#exporter-cost)
+- [Tools](#tools)
+  * [Planet Federator](#planet-federator)
+    + [Example InfluxQL](#example-influxql)
+- [Go Version](#go-version)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Introduction
 
 Simple discovery space-ship for your ~~infrastructure~~ planetary ecosystem across the universe.
 
+The primary goal here is to determine every servers' network dependencies (upstream/downstream) along with their bandwidth usage.
+
 Measure an environment's potential to maintain ~~services~~ life.
 
-### Packages Structure
-
-* The `task/*` packages are the crew that does expensive task behind the scene and prepare the data for `collector` package.
-* The `collector` package calls one/more `task/*` packages if it needs expensive metrics instead of preparing them on-the-fly.
-
-### Installation
+## Installation
 
 Grab a pre-built binary for your OS from the [Releases](https://github.com/williamchanrico/planet-exporter/releases/latest) page.
 
-### Configuration
+## Configuration
 
 Flags:
 
@@ -121,9 +138,9 @@ planet-exporter \
 
 Running with ebpf and custom inventory
 
-* Follow instructions on https://github.com/cloudflare/ebpf_exporter to start ebpf_exporter with [tcptop.yaml](setup/ebpf-config/tcptop.yaml) configuration.
+* Follow instructions on https://github.com/cloudflare/ebpf_exporter to start ebpf_exporter with example [tcptop.yaml](setup/ebpf-exporter/tcptop.yaml) configuration.
 
-* Run planet-exporter with ebpf enabled:
+* Run planet-exporter with ebpf collector task enabled:
 
 ```sh
 planet-exporter \
@@ -133,18 +150,33 @@ planet-exporter \
   -task-inventory-addr http://link-to-your.net/inventory_hosts.json
 ```
 
-### Collector Tasks
+## Project Structure
 
-#### Inventory
+![project-structure](project-structure.png)
+
+* The `collector` implements prometheus.Collector and the one behind promhttp.Handler. It leverages `task/*` packages for expensive metrics (also as cache) instead of preparing them on every prometheus.Collect.
+* The `task/*` packages are the crew that are doing the expensive tasks behind the scene and store the data for the `collector` package.
+
+## Collector Tasks
+
+This is the heart of Planet Exporter that's doing the heavy-lifting. Integrations with other dependencies happen here.
+
+### Inventory
 
 Query inventory data that will be used to map `ip_address` into `hostgroup` (an identifier based on Ansible convention) and `domain`.
 The `ip_address` may use CIDR notation (e.g. "10.1.0.0/16") and Inventory task will use the longest-prefix match.
 
 Without this task enabled, those hostgroup and domain fields will be empty.
 
-The flag `--task-inventory-addr` accepts an HTTP endpoint that returns inventory data in the supported format:
+Related flags:
 
-##### --task-inventory-format=arrayjson
+* `--task-inventory-enabled=true` to enable the task.
+* `--task-inventory-addr` accepts an HTTP endpoint that returns inventory data in the supported format.
+* `--task-inventory-format` to choose the supported format for the inventory data.
+
+Inventory formats:
+
+1. --task-inventory-format=arrayjson
 
 ```json
 [
@@ -166,7 +198,7 @@ The flag `--task-inventory-addr` accepts an HTTP endpoint that returns inventory
 ]
 ```
 
-##### --task-inventory-format=ndjson
+2. --task-inventory-format=ndjson
 
 ```json
 {"ip_address":"10.0.1.2","domain":"xyz.service.consul","hostgroup":"xyz"}
@@ -174,7 +206,7 @@ The flag `--task-inventory-addr` accepts an HTTP endpoint that returns inventory
 {"ip_address":"10.3.0.0/16","domain":"","hostgroup":"unknown-but-its-network-xyz"}
 ```
 
-#### Socketstat
+### Socketstat
 
 Query local connections socket similar to `ss` or `netstat` to build upstream and downstream dependency metrics.
 
@@ -219,7 +251,11 @@ planet_server_process{bind=":::9100",port="9100",process_name="node_exporter"} 1
 planet_server_process{bind=":::9256",port="9256",process_name="process_exporte"} 1
 ```
 
-#### Darkstat
+Related flags:
+
+* `--task-socketstat-enabled=true` to enable the task.
+
+### Darkstat
 
 [Darkstat](https://unix4lyfe.org/darkstat/) captures network traffic, calculates statistics about usage, and serves reports over HTTP.
 
@@ -238,34 +274,45 @@ planet_traffic_bytes_total{direction="ingress",remote_domain="xyz.service.consul
 planet_traffic_bytes_total{direction="ingress",remote_domain="debugapp.service.consul",remote_hostgroup="debugapp",remote_ip="10.2.3.4"} 1.26014316e+08
 ```
 
-#### eBPF-exporter
+Related flags:
 
-Planet exporter can be used along with [ebpf-exporter](https://github.com/cloudflare/ebpf_exporter) to extract packet flow information directly from kernel. PE currently supports reading prometheus data with [tcptop.yaml](setup/ebpf-config/tcptop.yaml) ebpf configuration. Checkout [ebpf-exporter](https://github.com/cloudflare/ebpf_exporter) instructions to run it with [tcptop.yaml](setup/ebpf-config/tcptop.yaml).
+* `--task-darkstat-enabled=true` to enable the task.
+* `--task-darkstat-addr` accepts an HTTP endpoint that returns darkstat metrics.
+
+### EBPF Exporter
+
+Planet exporter can be used along with [ebpf-exporter](https://github.com/cloudflare/ebpf_exporter) to extract packet flow information directly from kernel. PE currently supports reading prometheus data with [tcptop.yaml](setup/ebpf-exporter/tcptop.yaml) ebpf configuration. Checkout [ebpf-exporter](https://github.com/cloudflare/ebpf_exporter) instructions to run it with [tcptop.yaml](setup/ebpf-exporter/tcptop.yaml).
+
+Related flags:
+
+* `--task-ebpf-enabled=true` to enable the task.
+* `--task-ebpf-addr` accepts an HTTP endpoint that returns ebpf_exporter metrics (see [tcptop.yaml](setup/ebpf-exporter/tcptop.yaml) for the expected metrics values and format)
 
 ## Exporter Cost
 
 Planet exporter will consume CPU and Memory in proportion to the number
 of opened network file descriptors (opened sockets).
 
-## Additional Binaries
+# Tools
 
-### Planet Federator
+## Planet Federator
 
-Since planet-exporter stores raw data in Prometheus, dashboard queries on those data can get expensive.
-A tested traffic bandwidth query for a crowded service with ~300 upstreams/downstreams took about `9s` to return 1h data range.
-It gets longer when querying 12h or days range of data.
+It aggregates raw metrics in Prometheus collected from all the Planet Exporters. The aggregation is done per combination of `hostgroup` and `domain` metric labels, therefore individual `ip_address` granularity is lost.
 
-Planet Federator runs a Cron that queries Planet Exporter's traffic bandwidth data from Prometheus, pre-process, and
-stores them in a time-series database for clean and efficient dashboard queries.
+Dashboard queries on Planet Exporter raw data in Prometheus can get expensive very fast.
+A tested 1-hour range query for a crowded machine with ~300 upstreams/downstreams took about `9s`.
 
-Latest tested query on pre-processed data from InfluxDB for a crowded service that took `2.678s`, now takes `330ms`.
+Planet Exporter runs cron that queries Planet Exporter's traffic bandwidth data from Prometheus, process, and
+store them in a time-series database for clean and more efficient queries.
+
+Last tested query duration, before and after Planet Federator was `2.678s` vs `330ms`.
 
 TSDB supports:
 - [x] InfluxDB
 - [ ] Prometheus (if InfluxDB turns out to be a bad choice)
 - [ ] BigQuery
 
-#### Example InfluxQL
+### Example InfluxQL
 
 ```sql
 -- Example InfluxQL: Produces time series data showing traffic bandwidth for service = $service
@@ -304,7 +351,7 @@ $ planet-federator \
     -influxdb-bucket "mothership" # Works as database name if you're using InfluxDB v1.8 and earlier
 ```
 
-## Used Go Version
+# Go Version
 
 ```
 $ go version
@@ -313,10 +360,10 @@ go version go1.15 linux/amd64
 
 > Older Go version should work fine.
 
-## Contributing
+# Contributing
 
 Pull requests for new features, bug fixes, and suggestions are welcome!
 
-## License
+# License
 
 [Apache License 2.0](https://github.com/williamchanrico/planet-exporter/blob/master/LICENSE)
