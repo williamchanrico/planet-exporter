@@ -133,10 +133,10 @@ func Test_parseInventory(t *testing.T) {
 				},
 			},
 			want: Inventory{
-				ip: map[string]Host{
+				ipAddresses: map[string]Host{
 					"1.2.3.4": {Domain: "unit-test.local", IPAddress: "1.2.3.4", Hostgroup: "unit-test"},
 				},
-				networkCIDR: []networkHost{},
+				networkCIDRAddresses: []networkHost{},
 			},
 		},
 		{
@@ -149,12 +149,12 @@ func Test_parseInventory(t *testing.T) {
 				},
 			},
 			want: Inventory{
-				ip: map[string]Host{
+				ipAddresses: map[string]Host{
 					"1.2.3.4": {Domain: "unit-test-1.local", IPAddress: "1.2.3.4", Hostgroup: "unit-test"},
 					"1.2.3.5": {Domain: "unit-test-2.local", IPAddress: "1.2.3.5", Hostgroup: "unit-test"},
 					"1.2.3.6": {Domain: "unit-test-3.local", IPAddress: "1.2.3.6", Hostgroup: "unit-test"},
 				},
-				networkCIDR: []networkHost{},
+				networkCIDRAddresses: []networkHost{},
 			},
 		},
 		{
@@ -166,10 +166,10 @@ func Test_parseInventory(t *testing.T) {
 				},
 			},
 			want: Inventory{
-				ip: map[string]Host{
+				ipAddresses: map[string]Host{
 					"1.2.3.4": {Domain: "unit-test.local", IPAddress: "1.2.3.4", Hostgroup: "unit-test"},
 				},
-				networkCIDR: []networkHost{},
+				networkCIDRAddresses: []networkHost{},
 			},
 		},
 		{
@@ -181,10 +181,10 @@ func Test_parseInventory(t *testing.T) {
 				},
 			},
 			want: Inventory{
-				ip: map[string]Host{
+				ipAddresses: map[string]Host{
 					"1.2.3.4": {Domain: "unit-test.local", IPAddress: "1.2.3.4", Hostgroup: "unit-test"},
 				},
-				networkCIDR: []networkHost{
+				networkCIDRAddresses: []networkHost{
 					{
 						network: exampleCIDRNetwork,
 						host:    Host{Domain: "unit-test-cidr.local", IPAddress: exampleCIDRNetwork.String(), Hostgroup: "unit-test-cidr"},
@@ -202,10 +202,10 @@ func Test_parseInventory(t *testing.T) {
 				},
 			},
 			want: Inventory{
-				ip: map[string]Host{
+				ipAddresses: map[string]Host{
 					"1.2.3.4": {Domain: "unit-test.local", IPAddress: "1.2.3.4", Hostgroup: "unit-test"},
 				},
-				networkCIDR: []networkHost{
+				networkCIDRAddresses: []networkHost{
 					{
 						network: exampleCIDRNetwork,
 						host:    Host{Domain: "unit-test-cidr.local", IPAddress: exampleCIDRNetwork.String(), Hostgroup: "unit-test-cidr"},
@@ -222,10 +222,10 @@ func Test_parseInventory(t *testing.T) {
 				},
 			},
 			want: Inventory{
-				ip: map[string]Host{
+				ipAddresses: map[string]Host{
 					"1.2.3.4": {Domain: "unit-test.local", IPAddress: "1.2.3.4", Hostgroup: "unit-test"},
 				},
-				networkCIDR: []networkHost{
+				networkCIDRAddresses: []networkHost{
 					{
 						network: exampleCIDRNetworkQuadZero,
 						host:    Host{Domain: "unit-test-cidr.local", IPAddress: exampleCIDRNetworkQuadZero.String(), Hostgroup: "unit-test-cidr"},
@@ -245,8 +245,8 @@ func Test_parseInventory(t *testing.T) {
 
 func TestInventory_GetHost(t *testing.T) {
 	type fields struct {
-		ip          map[string]Host
-		networkCIDR []networkHost
+		ipAddresses          map[string]Host
+		networkCIDRAddresses []networkHost
 	}
 	type args struct {
 		address string
@@ -257,11 +257,11 @@ func TestInventory_GetHost(t *testing.T) {
 	_, exampleCIDR2, _ := net.ParseCIDR("10.0.32.0/19")
 	_, exampleCIDRQuadZero, _ := net.ParseCIDR("0.0.0.0/0")
 	inventory := fields{
-		ip: map[string]Host{
+		ipAddresses: map[string]Host{
 			"1.2.3.4": {Hostgroup: "unit-test", IPAddress: "1.2.3.4", Domain: "unit-test.local"},
 			"1.2.3.5": {Hostgroup: "unit-test", IPAddress: "1.2.3.5", Domain: "unit-test.local"},
 		},
-		networkCIDR: []networkHost{
+		networkCIDRAddresses: []networkHost{
 			{network: exampleCIDR1, host: Host{Hostgroup: "unit-test-cidr-1", IPAddress: exampleCIDR1.String(), Domain: "unit-test-cidr-1.local"}},
 			{network: exampleCIDR2, host: Host{Hostgroup: "unit-test-cidr-2", IPAddress: exampleCIDR2.String(), Domain: "unit-test-cidr-2.local"}},
 			{network: exampleCIDRQuadZero, host: Host{Hostgroup: "unit-test-cidr-quad-zero", IPAddress: exampleCIDRQuadZero.String(), Domain: "unit-test-cidr-quad-zero.local"}},
@@ -306,8 +306,8 @@ func TestInventory_GetHost(t *testing.T) {
 		{
 			name: "No match returns empty Host",
 			fields: fields{
-				ip:          make(map[string]Host),
-				networkCIDR: []networkHost{},
+				ipAddresses:          make(map[string]Host),
+				networkCIDRAddresses: []networkHost{},
 			},
 			args:  args{address: "123.123.123.123"},
 			want1: Host{},
@@ -317,8 +317,8 @@ func TestInventory_GetHost(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			i := Inventory{
-				ip:          tt.fields.ip,
-				networkCIDR: tt.fields.networkCIDR,
+				ipAddresses:          tt.fields.ipAddresses,
+				networkCIDRAddresses: tt.fields.networkCIDRAddresses,
 			}
 			got1, got2 := i.GetHost(tt.args.address)
 			if !reflect.DeepEqual(got1, tt.want1) {

@@ -64,8 +64,8 @@ func init() {
 		enabled: false,
 		mu:      sync.Mutex{},
 		values: Inventory{
-			ip:          make(map[string]Host),
-			networkCIDR: []networkHost{},
+			ipAddresses:          make(map[string]Host),
+			networkCIDRAddresses: []networkHost{},
 		},
 		httpClient: &http.Client{
 			Timeout: collectTimeout,
@@ -141,17 +141,17 @@ type networkHost struct {
 
 // Inventory contains mappings to Host information
 type Inventory struct {
-	// ip maps IP -> Host info
-	ip map[string]Host
-	// networkCIDR maps network in CIDR notation -> Host info
-	networkCIDR []networkHost
+	// ipAddresses maps IP -> Host info
+	ipAddresses map[string]Host
+	// networkCIDRAddresses maps network in CIDR notation -> Host info
+	networkCIDRAddresses []networkHost
 }
 
 // GetHost returns a Host information based on IP or Network address, in that order.
 // e.g. address can be "192.168.1.2" or "192.168.0.0/26"
 func (i Inventory) GetHost(address string) (Host, bool) {
 	// Priority 1: Check for single IP address match for the address within known IP inventory
-	if host, ok := i.ip[address]; ok {
+	if host, ok := i.ipAddresses[address]; ok {
 		return host, true
 	}
 
@@ -159,7 +159,7 @@ func (i Inventory) GetHost(address string) (Host, bool) {
 	targetIP := net.ParseIP(address)
 	matchedHost := Host{}
 	matchedPrefixLen := -1
-	for _, ipNetHost := range i.networkCIDR {
+	for _, ipNetHost := range i.networkCIDRAddresses {
 		currPrefixLen, _ := ipNetHost.network.Mask.Size()
 		if ipNetHost.network.Contains(targetIP) && currPrefixLen > matchedPrefixLen {
 			matchedPrefixLen = currPrefixLen
@@ -178,8 +178,8 @@ func (i Inventory) GetHost(address string) (Host, bool) {
 // This function supports hosts with IP address containing "/" (CIDR notation).
 func parseInventory(hosts []Host) Inventory {
 	inventory := Inventory{
-		ip:          make(map[string]Host),
-		networkCIDR: []networkHost{},
+		ipAddresses:          make(map[string]Host),
+		networkCIDRAddresses: []networkHost{},
 	}
 
 	for _, host := range hosts {
@@ -196,16 +196,16 @@ func parseInventory(hosts []Host) Inventory {
 				log.Debugf("Failed to parse CIDR address from an inventory host entry (address=%v): %v", host.IPAddress, err)
 				continue
 			}
-			networkToHost := networkHost{
+			networkCIDRAddress := networkHost{
 				network: network,
 				host:    host,
 			}
 
-			inventory.networkCIDR = append(inventory.networkCIDR, networkToHost)
+			inventory.networkCIDRAddresses = append(inventory.networkCIDRAddresses, networkCIDRAddress)
 		} else {
 			// An IP based inventory
 
-			inventory.ip[host.IPAddress] = host
+			inventory.ipAddresses[host.IPAddress] = host
 		}
 
 	}
