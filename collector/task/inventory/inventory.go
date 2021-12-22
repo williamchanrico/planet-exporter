@@ -27,7 +27,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// task that queries inventory data and aggregates them into usable mapping table
+// task that queries inventory data and aggregates them into usable inventory
 type task struct {
 	enabled         bool
 	inventoryAddr   string
@@ -38,18 +38,25 @@ type task struct {
 	httpClient *http.Client
 }
 
+const (
+	// collectTimeout for inventory requests to upstream
+	collectTimeout = 10 * time.Second
+
+	// Inventory formats:
+	//   - arrayjson: array of hosts objects '[{},{},{}]'
+	//   - ndjson: newline-delimited hosts objects '{}\n{}\n{}'
+	fmtArrayJSON string = "arrayjson"
+	fmtNDJSON           = "ndjson"
+)
+
 var (
 	once      sync.Once
 	singleton task
 
 	supportedInventoryFormats = map[string]bool{
-		"arrayjson": true,
-		"ndjson":    true,
+		fmtArrayJSON: true,
+		fmtNDJSON:    true,
 	}
-)
-
-const (
-	collectTimeout = 10 * time.Second
 )
 
 func init() {
@@ -57,8 +64,8 @@ func init() {
 		enabled: false,
 		mu:      sync.Mutex{},
 		values: Inventory{
-			ipToHosts:      make(map[string]Host),
-			networkToHosts: []ipNetHost{},
+			ip:          make(map[string]Host),
+			networkCIDR: []networkHost{},
 		},
 		httpClient: &http.Client{
 			Timeout: collectTimeout,
@@ -66,12 +73,12 @@ func init() {
 	}
 }
 
-// InitTask initial states
+// InitTask sets initial states
 func InitTask(ctx context.Context, enabled bool, inventoryAddr string, inventoryFormat string) {
 	// Validate inventory format
 	if _, ok := supportedInventoryFormats[inventoryFormat]; !ok {
 		log.Warningf("Unsupported inventory format '%v', fallback to the default format", inventoryFormat)
-		inventoryFormat = "arrayjson"
+		inventoryFormat = fmtArrayJSON
 	}
 	log.Infof("Using inventory format '%v'", inventoryFormat)
 
@@ -82,7 +89,7 @@ func InitTask(ctx context.Context, enabled bool, inventoryAddr string, inventory
 	})
 }
 
-// Get returns latest metrics from cache.values
+// Get returns current inventory data
 func Get() Inventory {
 	singleton.mu.Lock()
 	hosts := singleton.values
@@ -91,7 +98,7 @@ func Get() Inventory {
 	return hosts
 }
 
-// Collect will retrieve latest inventory data and fill cache.values with latest data
+// Collect retrieves real-time inventory data and updates singleton.values
 func Collect(ctx context.Context) error {
 	if !singleton.enabled {
 		return nil
@@ -126,39 +133,40 @@ func Collect(ctx context.Context) error {
 	return nil
 }
 
-// ipNetHost represents a mapping between network address to Host info
-type ipNetHost struct {
+// networkHost represents a mapping of network -> Host info
+type networkHost struct {
 	network *net.IPNet
 	host    Host
 }
 
 // Inventory contains mappings to Host information
 type Inventory struct {
-	// ipToHosts maps between IP to Host info
-	ipToHosts map[string]Host
-	// networkToHosts maps between network (in CIDR notation) to Host info
-	networkToHosts []ipNetHost
+	// ip maps IP -> Host info
+	ip map[string]Host
+	// networkCIDR maps network in CIDR notation -> Host info
+	networkCIDR []networkHost
 }
 
 // GetHost returns a Host information based on IP or Network address, in that order.
+// e.g. address can be "192.168.1.2" or "192.168.0.0/26"
 func (i Inventory) GetHost(address string) (Host, bool) {
-	// Priority 1: Check direct single IP address match for the address
-	if host, ok := i.ipToHosts[address]; ok {
+	// Priority 1: Check for single IP address match for the address within known IP inventory
+	if host, ok := i.ip[address]; ok {
 		return host, true
 	}
 
-	// Priority 2: Check for longest-prefix match with targetIP
+	// Priority 2: Check for longest-prefix match of targetIP within known network CIDR inventory
 	targetIP := net.ParseIP(address)
 	matchedHost := Host{}
 	matchedPrefixLen := -1
-	for _, ipNetHost := range i.networkToHosts {
+	for _, ipNetHost := range i.networkCIDR {
 		currPrefixLen, _ := ipNetHost.network.Mask.Size()
 		if ipNetHost.network.Contains(targetIP) && currPrefixLen > matchedPrefixLen {
 			matchedPrefixLen = currPrefixLen
 			matchedHost = ipNetHost.host
 		}
 	}
-	// There is a match when it's greater than 0 (even 0.0.0.0/0)
+	// There is a match when it's greater than or equal to 0 (even 0.0.0.0/0)
 	if matchedPrefixLen >= 0 {
 		return matchedHost, true
 	}
@@ -169,40 +177,43 @@ func (i Inventory) GetHost(address string) (Host, bool) {
 // parseInventory parses a list of Host into an Inventory
 // This function supports hosts with IP address containing "/" (CIDR notation).
 func parseInventory(hosts []Host) Inventory {
-	ipToHosts := make(map[string]Host)
-	networkToHosts := []ipNetHost{}
+	inventory := Inventory{
+		ip:          make(map[string]Host),
+		networkCIDR: []networkHost{},
+	}
+
 	for _, host := range hosts {
 		// Skip unknown hosts as they provide zero value for Planet Exporter
 		if host.Domain == "" && host.Hostgroup == "" {
 			continue
 		}
 
-		// For CIDR notation address, we put the mapping in a list of ipNetHost
 		if strings.Contains(host.IPAddress, "/") {
+			// A network CIDR based inventory
+
 			_, network, err := net.ParseCIDR(host.IPAddress)
 			if err != nil {
 				log.Debugf("Failed to parse CIDR address from an inventory host entry (address=%v): %v", host.IPAddress, err)
 				continue
 			}
-			networkToHost := ipNetHost{
+			networkToHost := networkHost{
 				network: network,
 				host:    host,
 			}
-			networkToHosts = append(networkToHosts, networkToHost)
+
+			inventory.networkCIDR = append(inventory.networkCIDR, networkToHost)
 		} else {
-			// Standard mapping between IP and Host
-			ipToHosts[host.IPAddress] = host
+			// An IP based inventory
+
+			inventory.ip[host.IPAddress] = host
 		}
 
 	}
 
-	return Inventory{
-		ipToHosts:      ipToHosts,
-		networkToHosts: networkToHosts,
-	}
+	return inventory
 }
 
-// GetLocalInventory returns current Host's inventory entry
+// GetLocalInventory returns an inventory entry for current host
 func GetLocalInventory() Host {
 	localHost := Host{}
 	defaultLocalAddr, err := network.DefaultLocalAddr()
