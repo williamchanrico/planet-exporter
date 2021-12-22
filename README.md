@@ -41,15 +41,13 @@
 
 ## Table of Content
 
+  * [Table of Content](#table-of-content)
   * [Introduction](#introduction)
   * [Installation](#installation)
   * [Configuration](#configuration)
   * [Project Structure](#project-structure)
   * [Collector Tasks](#collector-tasks)
     + [Inventory](#inventory)
-      - [Inventory Formats](#inventory-formats)
-        * [--task-inventory-format=arrayjson](#--task-inventory-format-arrayjson)
-        * [--task-inventory-format=ndjson](#--task-inventory-format-ndjson)
     + [Socketstat](#socketstat)
     + [Darkstat](#darkstat)
     + [EBPF Exporter](#ebpf-exporter)
@@ -288,7 +286,7 @@ Related flags:
 * `--task-ebpf-enabled=true` to enable the task.
 * `--task-ebpf-addr` accepts an HTTP endpoint that returns ebpf_exporter metrics (see [tcptop.yaml](setup/ebpf-exporter/tcptop.yaml) for the expected metrics values and format)
 
-## Exporter Cost
+# Exporter Cost
 
 Planet exporter will consume CPU and Memory in proportion to the number
 of opened network file descriptors (opened sockets).
