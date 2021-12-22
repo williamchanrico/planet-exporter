@@ -73,9 +73,7 @@ Grab a pre-built binary for your OS from the [Releases](https://github.com/willi
 
 ## Configuration
 
-Flags:
-
-There are no required flags. It is configured with usable defaults.
+There are no required flags. It is configured with usable defaults where only `--task-socketstat-enabled` is on.
 
 ```
 Usage of planet-exporter:
@@ -109,13 +107,13 @@ Usage of planet-exporter:
         Show version and exit
 ```
 
-Running with minimum collector tasks (just the socketstat)
+Running without any flags (it enables only the socketstat collector task)
 
 ```
 # planet-exporter
 ```
 
-Running with inventory and darkstat (darkstat has to be installed separately rev >= [e7e6652](https://www.unix4lyfe.org/gitweb/darkstat/commit/e7e6652113099e33930ab0f39630bf280e38f769))
+Running with inventory and darkstat collector tasks (darkstat has to be installed separately rev >= [e7e6652](https://www.unix4lyfe.org/gitweb/darkstat/commit/e7e6652113099e33930ab0f39630bf280e38f769)). See example darkstat [init.cfg](setup/darkstat/init.cfg).
 
 ```sh
 planet-exporter \
@@ -134,11 +132,9 @@ planet-exporter \
   -task-inventory-addr http://link-to-your.net/inventory_hosts.json
 ```
 
-Running with ebpf and custom inventory
+Running with ebpf and custom inventory format
 
 * Follow instructions on https://github.com/cloudflare/ebpf_exporter to start ebpf_exporter with example [tcptop.yaml](setup/ebpf-exporter/tcptop.yaml) configuration.
-
-* Run planet-exporter with ebpf collector task enabled:
 
 ```sh
 planet-exporter \
@@ -152,8 +148,8 @@ planet-exporter \
 
 ![project-structure](project-structure.png)
 
-* The `collector` implements prometheus.Collector and the one behind promhttp.Handler. It leverages `task/*` packages for expensive metrics (also as cache) instead of preparing them on every prometheus.Collect.
-* The `task/*` packages are the crew that are doing the expensive tasks behind the scene and store the data for the `collector` package.
+* The `collector` implements prometheus.Collector interface and is the one behind promhttp.Handler. It leverages `task/*` packages for expensive metrics (also as cache) instead of preparing them on every prometheus.Collect.
+* The `task/*` packages are the crew that are doing the expensive tasks behind the scene. They store the data for the `collector` package.
 
 ## Collector Tasks
 
@@ -295,22 +291,24 @@ of opened network file descriptors (opened sockets).
 
 ## Planet Federator
 
-It aggregates raw metrics in Prometheus collected from all the Planet Exporters. The aggregation is done per combination of `hostgroup` and `domain` metric labels, therefore individual `ip_address` granularity is lost.
-
 Dashboard queries on Planet Exporter raw data in Prometheus can get expensive very fast.
 A tested 1-hour range query for a crowded machine with ~300 upstreams/downstreams took about `9s`.
 
-Planet Exporter runs cron that queries Planet Exporter's traffic bandwidth data from Prometheus, process, and
+To improve query efficiency, Planet Federator aggregates Prometheus metrics collected from all the Planet Exporters. The aggregation is based on all except `ip_address` metrics label, therefore individual `ip_address` granularity is lost.
+
+Planet Exporter runs a cron that queries Planet Exporter's traffic bandwidth data from Prometheus, process, and
 store them in a time-series database for clean and more efficient queries.
 
 Last tested query duration, before and after Planet Federator was `2.678s` vs `330ms`.
 
 TSDB supports:
 - [x] InfluxDB
-- [ ] Prometheus (if InfluxDB turns out to be a bad choice)
+- [ ] Prometheus
 - [ ] BigQuery
 
 ### Example InfluxQL
+                                                                                                                                       
+These queries should be enough to build a useful dashboard based on Planet Exporter and Planet Federator processed metrics.
 
 ```sql
 -- Example InfluxQL: Produces time series data showing traffic bandwidth for service = $service
@@ -356,7 +354,7 @@ $ go version
 go version go1.15 linux/amd64
 ```
 
-> Older Go version should work fine.
+> Older Go versions should work fine.
 
 # Contributing
 
