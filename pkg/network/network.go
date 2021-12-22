@@ -64,11 +64,11 @@ func ServerConnections(ctx context.Context) (ServerConnectionStat, error) {
 		return ServerConnectionStat{}, err
 	}
 
-	// Get listening sockets
+	// Listening connection sockets
 	listeningConns := []ListeningConnSocket{}
-
-	// Get connection sockets
+	// Peered connection tuples
 	peeredConns := []PeeredConnSocket{}
+
 	for _, conn := range allConns {
 		proto := ""
 		switch conn.Type {
