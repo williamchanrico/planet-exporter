@@ -68,6 +68,7 @@ go-build-linux: ## Build the app for linux platforms exclude: "arm64" CGO errors
 
 .PHONY: go-test
 go-test: ## Run go test
+	golangci-lint run
 	go test -v ./...
 
 # DOCKER TASKS

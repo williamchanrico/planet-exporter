@@ -29,7 +29,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Config contains main service config options
+// Config contains main service config options.
 type Config struct {
 	// Main config
 	// CronJobSchedule schedule using cron format used by the Quartz Scheduler
@@ -57,14 +57,14 @@ type Config struct {
 	PrometheusAddr string
 }
 
-// Service contains main service dependency
+// Service contains main service dependency.
 type Service struct {
 	Config        Config
 	FederatorSvc  federator.Service
 	PrometheusSvc prometheus.Service
 }
 
-// New service
+// New service.
 func New(config Config, federatorSvc federator.Service, prometheusSvc prometheus.Service) Service {
 	return Service{
 		Config:        config,
@@ -73,7 +73,7 @@ func New(config Config, federatorSvc federator.Service, prometheusSvc prometheus
 	}
 }
 
-// Run main service
+// Run main service.
 func (s Service) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -82,15 +82,15 @@ func (s Service) Run(ctx context.Context) error {
 	cronScheduler := cron.New(cron.WithSeconds())
 	_, err := cronScheduler.AddFunc(s.Config.CronJobSchedule, s.TrafficBandwidthJobFunc)
 	if err != nil {
-		return fmt.Errorf("Error adding TrafficBandwidthJobFunc function to Cron scheduler: %v", err)
+		return fmt.Errorf("error adding TrafficBandwidthJobFunc function to Cron scheduler: %w", err)
 	}
 	_, err = cronScheduler.AddFunc(s.Config.CronJobSchedule, s.UpstreamServicesJobFunc)
 	if err != nil {
-		return fmt.Errorf("Error adding UpstreamServicesJobFunc function to Cron scheduler: %v", err)
+		return fmt.Errorf("error adding UpstreamServicesJobFunc function to Cron scheduler: %w", err)
 	}
 	_, err = cronScheduler.AddFunc(s.Config.CronJobSchedule, s.DownstreamServicesJobFunc)
 	if err != nil {
-		return fmt.Errorf("Error adding DownstreamServicesJobFunc function to Cron scheduler: %v", err)
+		return fmt.Errorf("error adding DownstreamServicesJobFunc function to Cron scheduler: %w", err)
 	}
 	cronScheduler.Start()
 
@@ -128,20 +128,20 @@ func (s Service) Run(ctx context.Context) error {
 	return nil
 }
 
-// getCronJobStartTime returns the time for cron job starting point
+// getCronJobStartTime returns the time for cron job starting point.
 func (s Service) getCronJobStartTime() time.Time {
 	// We want to offset the query time by the specified offset
 	return time.Now().Add(s.Config.CronJobTimeOffset)
 }
 
-// getCronJobDuration returns the duration since the cron job was started
+// getCronJobDuration returns the duration since the cron job was started.
 func (s Service) getCronJobDuration(startTime time.Time) time.Duration {
 	// We want to offset the query time by the specified offset
 	return time.Now().Add(s.Config.CronJobTimeOffset).Sub(startTime)
 }
 
 // TrafficBandwidthJobFunc queries traffic bandwidth (planet-exporter) data from Prometheus and store
-// them in federator backend
+// them in federator backend.
 func (s Service) TrafficBandwidthJobFunc() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.Config.CronJobTimeoutSecond)*time.Second)
 	defer cancel()
@@ -169,7 +169,7 @@ func (s Service) TrafficBandwidthJobFunc() {
 }
 
 // UpstreamServicesJobFunc queries upstream services (planet-exporter) data from Prometheus and store
-// them in federator backend
+// them in federator backend.
 func (s Service) UpstreamServicesJobFunc() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.Config.CronJobTimeoutSecond)*time.Second)
 	defer cancel()
@@ -184,12 +184,12 @@ func (s Service) UpstreamServicesJobFunc() {
 
 	for _, svc := range upstreamServices {
 		_ = s.FederatorSvc.AddUpstreamService(ctx, federator.UpstreamService{
+			LocalProcessName:  svc.LocalProcessName,
 			LocalHostgroup:    svc.LocalHostgroup,
 			LocalAddress:      svc.LocalAddress,
-			LocalProcessName:  svc.LocalProcessName,
-			UpstreamPort:      svc.UpstreamPort,
-			UpstreamHostgroup: svc.UpstreamHostgroup,
-			UpstreamAddress:   svc.UpstreamAddress,
+			UpstreamHostgroup: svc.RemoteHostgroup,
+			UpstreamAddress:   svc.RemoteAddress,
+			UpstreamPort:      svc.Port,
 			Protocol:          svc.Protocol,
 		}, jobStartTime)
 	}
@@ -198,7 +198,7 @@ func (s Service) UpstreamServicesJobFunc() {
 }
 
 // DownstreamServicesJobFunc queries downstream services (planet-exporter) data from Prometheus and store
-// them in federator backend
+// them in federator backend.
 func (s Service) DownstreamServicesJobFunc() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.Config.CronJobTimeoutSecond)*time.Second)
 	defer cancel()
@@ -213,12 +213,12 @@ func (s Service) DownstreamServicesJobFunc() {
 
 	for _, svc := range downstreamServices {
 		_ = s.FederatorSvc.AddDownstreamService(ctx, federator.DownstreamService{
+			LocalProcessName:    svc.LocalProcessName,
 			LocalHostgroup:      svc.LocalHostgroup,
 			LocalAddress:        svc.LocalAddress,
-			LocalProcessName:    svc.LocalProcessName,
-			LocalPort:           svc.LocalPort,
-			DownstreamHostgroup: svc.DownstreamHostgroup,
-			DownstreamAddress:   svc.DownstreamAddress,
+			DownstreamHostgroup: svc.RemoteHostgroup,
+			DownstreamAddress:   svc.RemoteAddress,
+			LocalPort:           svc.Port,
 			Protocol:            svc.Protocol,
 		}, jobStartTime)
 	}

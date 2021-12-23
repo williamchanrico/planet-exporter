@@ -16,14 +16,14 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"net/http/pprof"
 
 	"planet-exporter/collector"
 	taskdarkstat "planet-exporter/collector/task/darkstat"
@@ -38,8 +38,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Config contains main service config options
-type Config struct {
+// Config contains main service config options.
+type Config struct { // nolint:maligned
 	// Main config
 	ListenAddress       string
 	LogLevel            string
@@ -63,7 +63,7 @@ type Config struct {
 	TaskSocketstatEnabled bool
 }
 
-// Service contains main service dependency
+// Service contains main service dependency.
 type Service struct {
 	Config Config
 
@@ -71,7 +71,7 @@ type Service struct {
 	Collector *collector.PlanetCollector
 }
 
-// New service
+// New service.
 func New(config Config, collector *collector.PlanetCollector) Service {
 	return Service{
 		Config:    config,
@@ -79,7 +79,7 @@ func New(config Config, collector *collector.PlanetCollector) Service {
 	}
 }
 
-// Run main service
+// Run main service.
 func (s Service) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -88,14 +88,14 @@ func (s Service) Run(ctx context.Context) error {
 	log.Infof("Set task ticker duration to %v", s.Config.TaskInterval)
 	interval, err := time.ParseDuration(s.Config.TaskInterval)
 	if err != nil {
-		return err
+		return fmt.Errorf("error parsing interval duration: %w", err)
 	}
 	go s.collect(ctx, interval)
 
-	r := prometheus.NewRegistry()
-	r.MustRegister(version.NewCollector("planet_exporter"))
-	if err := r.Register(s.Collector); err != nil {
-		return fmt.Errorf("Failed to register planet collector: %v", err)
+	promRegistry := prometheus.NewRegistry()
+	promRegistry.MustRegister(version.NewCollector("planet_exporter"))
+	if err := promRegistry.Register(s.Collector); err != nil {
+		return fmt.Errorf("failed to register planet collector: %w", err)
 	}
 
 	handler := http.NewServeMux()
@@ -113,8 +113,8 @@ func (s Service) Run(ctx context.Context) error {
 		}
 	})
 	handler.Handle("/metrics", promhttp.HandlerFor(
-		prometheus.Gatherers{r},
-		promhttp.HandlerOpts{
+		prometheus.Gatherers{promRegistry},
+		promhttp.HandlerOpts{ // nolint:exhaustivestruct
 			ErrorHandling: promhttp.ContinueOnError,
 		},
 	))
@@ -139,8 +139,8 @@ func (s Service) Run(ctx context.Context) error {
 	}()
 
 	log.Infof("Start HTTP server on %v", s.Config.ListenAddress)
-	if err := httpServer.Serve(s.Config.ListenAddress); err != http.ErrServerClosed {
-		return err
+	if err := httpServer.Serve(s.Config.ListenAddress); !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("error on HTTP server: %w", err)
 	}
 
 	<-stopChan
@@ -148,9 +148,11 @@ func (s Service) Run(ctx context.Context) error {
 	return nil
 }
 
-// collect periodically runs all collector tasks that are expensive to compute on-the-fly
+// collect periodically runs all collector tasks that are expensive to compute on-the-fly.
 func (s Service) collect(ctx context.Context, interval time.Duration) {
-	inventoryTicker := time.NewTicker(interval * 25)
+	const inventoryTickerIntervalSeconds = 25
+
+	inventoryTicker := time.NewTicker(interval * inventoryTickerIntervalSeconds)
 	defaultTicker := time.NewTicker(interval)
 	defer inventoryTicker.Stop()
 	defer defaultTicker.Stop()

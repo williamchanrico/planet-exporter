@@ -16,6 +16,7 @@ package federator
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -23,7 +24,7 @@ import (
 // Influxdb and/or other time-series databases.
 
 // TrafficBandwidth represents a pair of services that are involved in an ingress/egress traffic
-// e.g. LocalHostgroup testapp transmit 10Mbps to RemoteHostgroup abc
+// e.g. LocalHostgroup testapp transmit 10Mbps to RemoteHostgroup abc.
 type TrafficBandwidth struct {
 	LocalHostgroup  string
 	LocalAddress    string
@@ -62,7 +63,7 @@ type DownstreamService struct {
 }
 
 // Backend interface for a time-series DB that is handling pre-processed planet-exporter data
-// Planet Expoter <- Prometheus -> Planet Federator (pre-process) -> Time-series DB
+// Planet Expoter <- Prometheus -> Planet Federator (pre-process) -> Time-series DB.
 type Backend interface {
 	AddTrafficBandwidthData(context.Context, TrafficBandwidth, time.Time) error
 	AddUpstreamService(context.Context, UpstreamService, time.Time) error
@@ -70,34 +71,49 @@ type Backend interface {
 	Flush()
 }
 
-// Service represents a federator service
+// Service represents a federator service.
 type Service struct {
 	backend Backend
 }
 
-// New returns new federator service
+// New returns new federator service.
 func New(b Backend) Service {
 	return Service{
 		backend: b,
 	}
 }
 
-// AddTrafficBandwidthData adds an ingress bytes data point
+// AddTrafficBandwidthData adds an ingress bytes data point.
 func (s Service) AddTrafficBandwidthData(ctx context.Context, trafficBandwidth TrafficBandwidth, t time.Time) error {
-	return s.backend.AddTrafficBandwidthData(ctx, trafficBandwidth, t)
+	err := s.backend.AddTrafficBandwidthData(ctx, trafficBandwidth, t)
+	if err != nil {
+		return fmt.Errorf("error on adding traffic bandwidth data: %w", err)
+	}
+
+	return nil
 }
 
-// AddUpstreamService adds an upstream of a local service
+// AddUpstreamService adds an upstream of a local service.
 func (s Service) AddUpstreamService(ctx context.Context, upstreamService UpstreamService, t time.Time) error {
-	return s.backend.AddUpstreamService(ctx, upstreamService, t)
+	err := s.backend.AddUpstreamService(ctx, upstreamService, t)
+	if err != nil {
+		return fmt.Errorf("error on adding upstream service: %w", err)
+	}
+
+	return nil
 }
 
-// AddDownstreamService adds a downstream of a local service
+// AddDownstreamService adds a downstream of a local service.
 func (s Service) AddDownstreamService(ctx context.Context, downstreamService DownstreamService, t time.Time) error {
-	return s.backend.AddDownstreamService(ctx, downstreamService, t)
+	err := s.backend.AddDownstreamService(ctx, downstreamService, t)
+	if err != nil {
+		return fmt.Errorf("error on adding downstream service: %w", err)
+	}
+
+	return nil
 }
 
-// Flush any buffers related to backend
+// Flush any buffers related to backend.
 func (s Service) Flush() {
 	s.backend.Flush()
 }

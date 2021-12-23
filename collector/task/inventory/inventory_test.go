@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-// mockHostsResponseData returns an io.Reader simulating inventory JSON data returned from upstream
+// mockHostsResponseData returns an io.Reader simulating inventory JSON data returned from upstream.
 func mockHostsResponseData(raw string) io.ReadCloser {
 	return io.NopCloser(strings.NewReader(raw))
 }
@@ -99,15 +99,16 @@ func Test_parseHosts(t *testing.T) {
 			},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseHosts(tt.args.format, tt.args.data)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseHosts() error = %v, wantErr %v", err, tt.wantErr)
+	for _, testcase := range tests {
+		t.Run(testcase.name, func(t *testing.T) {
+			got, err := parseHosts(testcase.args.format, testcase.args.data)
+			if (err != nil) != testcase.wantErr {
+				t.Errorf("parseHosts() error = %v, wantErr %v", err, testcase.wantErr)
+
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseHosts() = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(got, testcase.want) {
+				t.Errorf("parseHosts() = %v, want %v", got, testcase.want)
 			}
 		})
 	}
@@ -234,10 +235,10 @@ func Test_parseInventory(t *testing.T) {
 			},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := parseInventory(tt.args.hosts); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseInventory() = %v, want %v", got, tt.want)
+	for _, testcase := range tests {
+		t.Run(testcase.name, func(t *testing.T) {
+			if got := parseInventory(testcase.args.hosts); !reflect.DeepEqual(got, testcase.want) {
+				t.Errorf("parseInventory() = %v, want %v", got, testcase.want)
 			}
 		})
 	}
@@ -310,22 +311,22 @@ func TestInventory_GetHost(t *testing.T) {
 				networkCIDRAddresses: []networkHost{},
 			},
 			args:  args{address: "123.123.123.123"},
-			want1: Host{},
+			want1: Host{}, // nolint:exhaustivestruct
 			want2: false,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testcase := range tests {
+		t.Run(testcase.name, func(t *testing.T) {
 			i := Inventory{
-				ipAddresses:          tt.fields.ipAddresses,
-				networkCIDRAddresses: tt.fields.networkCIDRAddresses,
+				ipAddresses:          testcase.fields.ipAddresses,
+				networkCIDRAddresses: testcase.fields.networkCIDRAddresses,
 			}
-			got1, got2 := i.GetHost(tt.args.address)
-			if !reflect.DeepEqual(got1, tt.want1) {
-				t.Errorf("Inventory.GetHost() got1 = %v, want %v", got1, tt.want1)
+			got1, got2 := i.GetHost(testcase.args.address)
+			if !reflect.DeepEqual(got1, testcase.want1) {
+				t.Errorf("Inventory.GetHost() got1 = %v, want %v", got1, testcase.want1)
 			}
-			if got2 != tt.want2 {
-				t.Errorf("Inventory.GetHost() got2 = %v, want %v", got2, tt.want2)
+			if got2 != testcase.want2 {
+				t.Errorf("Inventory.GetHost() got2 = %v, want %v", got2, testcase.want2)
 			}
 		})
 	}

@@ -16,7 +16,6 @@ package prometheus
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -30,12 +29,12 @@ import (
 
 // https://prometheus.io/docs/prometheus/latest/querying/api/
 
-// Service is prometheus service
+// Service is prometheus service.
 type Service struct {
 	promapiClient api.Client
 }
 
-// New returns a prometheus client service
+// New returns a prometheus client service.
 func New(promapiClient api.Client) Service {
 	return Service{
 		promapiClient: promapiClient,
@@ -43,8 +42,10 @@ func New(promapiClient api.Client) Service {
 }
 
 // TODO: Return explicit vector
+// nolint:unused
 func (s Service) query(ctx context.Context, query string, qTime time.Time) (model.Value, error) {
-	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	const contextTimeoutSeconds = 120
+	ctx, cancel := context.WithTimeout(ctx, contextTimeoutSeconds*time.Second)
 	defer cancel()
 
 	v1api := v1.NewAPI(s.promapiClient)
@@ -52,7 +53,7 @@ func (s Service) query(ctx context.Context, query string, qTime time.Time) (mode
 	log.Debugf("Query %v", query)
 	results, warnings, err := v1api.Query(ctx, query, qTime)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error on query: %w", err)
 	}
 	if len(warnings) > 0 {
 		for _, v := range warnings {
@@ -60,12 +61,14 @@ func (s Service) query(ctx context.Context, query string, qTime time.Time) (mode
 		}
 	}
 
-	return results, err
+	return results, nil
 }
 
-// TODO: Return explicit matrix
-func (s Service) queryRange(ctx context.Context, query string, qStartTime time.Time, qEndTime time.Time) (model.Value, error) {
-	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
+// TODO: Return explicit matrix.
+func (s Service) queryRange(ctx context.Context, query string,
+	qStartTime time.Time, qEndTime time.Time) (model.Value, error) {
+	const contextTimeoutSeconds = 120
+	ctx, cancel := context.WithTimeout(ctx, contextTimeoutSeconds*time.Second)
 	defer cancel()
 
 	v1api := v1.NewAPI(s.promapiClient)
@@ -77,7 +80,7 @@ func (s Service) queryRange(ctx context.Context, query string, qStartTime time.T
 		Step:  1 * time.Minute,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error on queryRange: %w", err)
 	}
 	if len(warnings) > 0 {
 		for _, v := range warnings {
@@ -85,26 +88,36 @@ func (s Service) queryRange(ctx context.Context, query string, qStartTime time.T
 		}
 	}
 
-	return results, err
+	return results, nil
 }
 
+// ErrMetricsLabelNotFound could not find the label in metrics.
+var ErrMetricsLabelNotFound = fmt.Errorf("could not find label in metrics")
+
+// nolint:unused
 func (s Service) getLabelValue(label string, metric model.Metric) (string, error) {
 	labelValue, ok := metric[model.LabelName(label)]
 	if !ok {
-		return "", fmt.Errorf("Could not find %v label in metrics", label)
+		return "", ErrMetricsLabelNotFound
 	}
+
 	return string(labelValue), nil
 }
 
+// ErrIPAddressMetricsLabelInvalid could not extract the IP address from the metrics.
+var ErrIPAddressMetricsLabelInvalid = fmt.Errorf("could not extract IP from the metrics")
+
+// nolint:unused
 func (s Service) getIPAddressFromLabelValue(label string, metric model.Metric) (string, error) {
 	lvIPAddr, err := s.getLabelValue(label, metric)
 	if err != nil {
 		return "", err
 	}
-	ipParts := strings.Split(string(lvIPAddr), ":")
+	ipParts := strings.Split(lvIPAddr, ":")
 	if len(ipParts) < 1 {
-		return "", errors.New("Could not extract IP from the metric")
+		return "", ErrIPAddressMetricsLabelInvalid
 	}
+
 	return ipParts[0], nil
 }
 
@@ -114,5 +127,6 @@ func (s Service) getMaxValueFromSamplePairs(samplePairs []model.SamplePair) floa
 		val := float64(v.Value)
 		maxi = math.Max(maxi, val)
 	}
+
 	return maxi
 }

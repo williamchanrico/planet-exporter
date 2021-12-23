@@ -18,6 +18,5 @@ import (
 	"fmt"
 )
 
-var (
-	errInvalidInventoryFormat = fmt.Errorf("Invalid inventory format")
-)
+// ErrInvalidInventoryFormat invalid inventory format.
+var ErrInvalidInventoryFormat = fmt.Errorf("invalid inventory format")

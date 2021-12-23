@@ -3,6 +3,7 @@ package inventory
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -10,29 +11,33 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Host contains an inventory entry
+// Host contains an inventory entry.
 type Host struct {
 	Domain    string `json:"domain"`
 	Hostgroup string `json:"hostgroup"`
 	IPAddress string `json:"ip_address"`
 }
 
-// requestHosts requests a new inventory host entries from upstream inventoryAddr
+// requestHosts requests a new inventory host entries from upstream inventoryAddr.
 func requestHosts(ctx context.Context, httpClient *http.Client, inventoryFormat, inventoryAddr string) ([]Host, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, inventoryAddr, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating inventory request: %w", err)
 	}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error requesting inventory: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			log.Errorf("error closing hosts response body: %v", err)
+		}
+	}()
 
 	return parseHosts(inventoryFormat, response.Body)
 }
 
-// parseHosts parses inventory data as a list of Host
+// parseHosts parses inventory data as a list of Host.
 func parseHosts(format string, data io.Reader) ([]Host, error) {
 	var result []Host
 
@@ -41,11 +46,12 @@ func parseHosts(format string, data io.Reader) ([]Host, error) {
 
 	switch format {
 	case fmtNDJSON:
-		inventoryEntry := Host{}
+		var inventoryEntry Host
 		for decoder.More() {
 			err := decoder.Decode(&inventoryEntry)
 			if err != nil {
 				log.Errorf("Skip an inventory host entry due to parser error: %v", err)
+
 				continue
 			}
 			result = append(result, inventoryEntry)
@@ -54,7 +60,7 @@ func parseHosts(format string, data io.Reader) ([]Host, error) {
 	case fmtArrayJSON:
 		err := decoder.Decode(&result)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error decoding arrayjson inventory data: %w", err)
 		}
 
 		// Because we only expect a single JSON array object, we discard unexpected additional data.
@@ -64,7 +70,7 @@ func parseHosts(format string, data io.Reader) ([]Host, error) {
 		}
 
 	default:
-		return nil, errInvalidInventoryFormat
+		return nil, ErrInvalidInventoryFormat
 	}
 	log.Debugf("Parsed %v inventory hosts", len(result))
 
