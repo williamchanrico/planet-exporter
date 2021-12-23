@@ -97,13 +97,21 @@ func (s Service) queryPlanetExporterTrafficBandwidth(ctx context.Context, query 
 
 // PlanetExporterDependencyService represents an upstream/downstream service dependency of a local service.
 type PlanetExporterDependencyService struct {
-	LocalHostgroup   string
-	LocalAddress     string
+	LocalHostgroup  string
+	LocalAddress    string
+	RemoteHostgroup string
+	RemoteAddress   string
+
+	// LocalProcessName represents the process that interacts with the upstream/downstream dependency.
 	LocalProcessName string
-	RemotePort       string
-	RemoteHostgroup  string
-	RemoteAddress    string
-	Protocol         string
+
+	// Port represents the port that is depended upon.
+	// This would be a remote port for an upstream dependency and a local port for a downstream dependency.
+	//
+	// Example: Server --> (remote port) Upstream || Downstream --> (local port) Server
+	Port string
+
+	Protocol string
 }
 
 // QueryPlanetExporterUpstreamServices returns all upstream service dependencies.
@@ -181,7 +189,7 @@ func (s Service) queryPlanetExporterDependencyServices(ctx context.Context, quer
 			LocalHostgroup:   string(localHostgroup),
 			LocalAddress:     string(localAddress),
 			LocalProcessName: string(localProcessName),
-			RemotePort:       string(remotePort),
+			Port:             string(remotePort),
 			RemoteHostgroup:  string(remoteHostgroup),
 			RemoteAddress:    string(remoteAddress),
 			Protocol:         string(protocol),

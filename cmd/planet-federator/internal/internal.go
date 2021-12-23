@@ -184,12 +184,12 @@ func (s Service) UpstreamServicesJobFunc() {
 
 	for _, svc := range upstreamServices {
 		_ = s.FederatorSvc.AddUpstreamService(ctx, federator.UpstreamService{
+			LocalProcessName:  svc.LocalProcessName,
 			LocalHostgroup:    svc.LocalHostgroup,
 			LocalAddress:      svc.LocalAddress,
-			LocalProcessName:  svc.LocalProcessName,
-			UpstreamPort:      svc.RemotePort,
 			UpstreamHostgroup: svc.RemoteHostgroup,
 			UpstreamAddress:   svc.RemoteAddress,
+			UpstreamPort:      svc.Port,
 			Protocol:          svc.Protocol,
 		}, jobStartTime)
 	}
@@ -213,12 +213,12 @@ func (s Service) DownstreamServicesJobFunc() {
 
 	for _, svc := range downstreamServices {
 		_ = s.FederatorSvc.AddDownstreamService(ctx, federator.DownstreamService{
+			LocalProcessName:    svc.LocalProcessName,
 			LocalHostgroup:      svc.LocalHostgroup,
 			LocalAddress:        svc.LocalAddress,
-			LocalProcessName:    svc.LocalProcessName,
-			LocalPort:           svc.RemotePort,
 			DownstreamHostgroup: svc.RemoteHostgroup,
 			DownstreamAddress:   svc.RemoteAddress,
+			LocalPort:           svc.Port,
 			Protocol:            svc.Protocol,
 		}, jobStartTime)
 	}
