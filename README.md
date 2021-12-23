@@ -352,7 +352,7 @@ $ planet-federator \
 
 ```
 $ go version
-go version go1.15 linux/amd64
+go version go1.17 linux/amd64
 ```
 
 > Older Go versions should work fine.
