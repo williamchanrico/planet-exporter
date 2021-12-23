@@ -25,3 +25,20 @@ jobs:
 
       - name: Unit tests
         run: go test -race -v ./...
+
+  golangci-lint:
+    permissions:
+      checks: write
+      contents: read
+      pull-requests: write
+    if: github.event_name == 'pull_request'
+    name: runner / golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: reviewdog/action-golangci-lint@v2
+        with:
+          github_token: ${{ secrets.github_token }}
+          level: 'warning'
+          reporter: github-pr-check
