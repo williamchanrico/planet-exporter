@@ -46,7 +46,7 @@ const (
 	//   - arrayjson: array of hosts objects '[{},{},{}]'
 	//   - ndjson: newline-delimited hosts objects '{}\n{}\n{}'
 	fmtArrayJSON string = "arrayjson"
-	fmtNDJSON           = "ndjson"
+	fmtNDJSON    string = "ndjson"
 )
 
 var (

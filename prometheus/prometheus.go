@@ -43,6 +43,7 @@ func New(promapiClient api.Client) Service {
 }
 
 // TODO: Return explicit vector
+// nolint:unused
 func (s Service) query(ctx context.Context, query string, qTime time.Time) (model.Value, error) {
 	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
@@ -88,6 +89,7 @@ func (s Service) queryRange(ctx context.Context, query string, qStartTime time.T
 	return results, err
 }
 
+// nolint:unused
 func (s Service) getLabelValue(label string, metric model.Metric) (string, error) {
 	labelValue, ok := metric[model.LabelName(label)]
 	if !ok {
@@ -96,6 +98,7 @@ func (s Service) getLabelValue(label string, metric model.Metric) (string, error
 	return string(labelValue), nil
 }
 
+// nolint:unused
 func (s Service) getIPAddressFromLabelValue(label string, metric model.Metric) (string, error) {
 	lvIPAddr, err := s.getLabelValue(label, metric)
 	if err != nil {
