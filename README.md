@@ -4,38 +4,39 @@
   <img src="./flow.png" />
 </div>
 <div align="center">
-  <strong>Know your dependencies!</strong>
+  <strong>Know your network dependencies!</strong>
 </div>
 <div align="center">
-  An <code>experimental</code> code to support my other project.
+  A simple Prometheus exporter that provides understanding of your machines network dependencies.
 </div>
 
 <br />
 
 <div align="center">
-  <!-- Stability -->
-  <a href="https://nodejs.org/api/documentation.html#documentation_stability_index">
-    <img src="https://img.shields.io/badge/stability-stable-green.svg?style=flat-square"
-      alt="API stability" />
-  </a>
-  <!-- Relese -->
+  <!-- Goreleaser Build -->
   <a href="https://github.com/williamchanrico/planet-exporter/releases">
-    <img src="https://img.shields.io/github/release/williamchanrico/planet-exporter.svg?style=flat-square""
+    <img alt="Goreleaser Build" src="https://img.shields.io/github/workflow/status/williamchanrico/planet-exporter/Release?style=flat-square&label=Goreleaser">
+  </a>
+  <!-- Release -->
+  <a href="https://github.com/williamchanrico/planet-exporter/releases">
+    <img src="https://img.shields.io/github/v/release/williamchanrico/planet-exporter?style=flat-square&label=Release"
       alt="Release" />
   </a>
+  <!-- Go Version -->
+  <a href="https://github.com/williamchanrico/planet-exporter/releases">
+    <img src="https://img.shields.io/github/go-mod/go-version/williamchanrico/planet-exporter?color=67CFDC&style=flat-square"
+      alt="Go Version" />
+  </a>
+  <!-- CodeQL Analysis -->
+  <a href="https://github.com/williamchanrico/planet-exporter/releases">
+    <img alt="CodeQL Analysis" src="https://img.shields.io/github/workflow/status/williamchanrico/planet-exporter/CodeQL?label=CodeQL&style=flat-square">
+  </a>
   <!-- Apache License -->
-  <a href="https://opensource.org/licenses/Apache-2.0"><img
-    src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"
+  <a href="https://github.com/williamchanrico/planet-exporter/blob/master/LICENSE"><img
+    src="https://img.shields.io/github/license/williamchanrico/planet-exporter?color=blue&style=flat-square&label=License"
     border="0"
     alt="Apache-2.0 Licence"
     title="Apache-2.0 Licence">
-  </a>
-  <!-- Open Source Love -->
-  <a href="#"><img
-    src="https://badges.frapsoft.com/os/v1/open-source.svg?v=103"
-    border="0"
-    alt="Open Source Love"
-    title="Open Source Love">
   </a>
 </div>
 
@@ -107,13 +108,13 @@ Usage of planet-exporter:
         Show version and exit
 ```
 
-Running without any flags (it enables only the socketstat collector task)
+Running **without any flags** (it enables only the socketstat collector task)
 
 ```
 # planet-exporter
 ```
 
-Running with inventory and darkstat collector tasks (darkstat has to be installed separately rev >= [e7e6652](https://www.unix4lyfe.org/gitweb/darkstat/commit/e7e6652113099e33930ab0f39630bf280e38f769)). See example darkstat [init.cfg](setup/darkstat/init.cfg).
+Running **with inventory and darkstat** (darkstat has to be installed separately rev >= [e7e6652](https://www.unix4lyfe.org/gitweb/darkstat/commit/e7e6652113099e33930ab0f39630bf280e38f769)). See example darkstat [init.cfg](setup/darkstat/init.cfg).
 
 ```sh
 planet-exporter \
@@ -123,7 +124,7 @@ planet-exporter \
   -task-darkstat-addr http://localhost:51666/metrics
 ```
 
-Running with another inventory format
+Running **with another inventory format**
 
 ```sh
 planet-exporter \
@@ -132,7 +133,7 @@ planet-exporter \
   -task-inventory-addr http://link-to-your.net/inventory_hosts.json
 ```
 
-Running with ebpf and custom inventory format
+Running **with ebpf_exporter and another inventory format**
 
 * Follow instructions on https://github.com/cloudflare/ebpf_exporter to start ebpf_exporter with example [tcptop.yaml](setup/ebpf-exporter/tcptop.yaml) configuration.
 
@@ -307,7 +308,7 @@ TSDB supports:
 - [ ] BigQuery
 
 ### Example InfluxQL
-                                                                                                                                       
+
 These queries should be enough to build a useful dashboard based on Planet Exporter and Planet Federator processed metrics.
 
 ```sql
