@@ -148,7 +148,7 @@ func (s Service) Run(ctx context.Context) error {
 	return nil
 }
 
-// collect periodically runs all collector tasks that are expensive to compute on-the-fly test trigger golangci-lint asdf
+// collect periodically runs all collector tasks that are expensive to compute on-the-fly.
 func (s Service) collect(ctx context.Context, interval time.Duration) {
 	const inventoryTickerIntervalSeconds = 25
 
