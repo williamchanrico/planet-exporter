@@ -20,18 +20,19 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"planet-exporter/collector/task/inventory"
-	"planet-exporter/pkg/network"
-	"planet-exporter/pkg/prometheus"
 	"strconv"
 	"sync"
 	"time"
+
+	"planet-exporter/collector/task/inventory"
+	"planet-exporter/pkg/network"
+	"planet-exporter/pkg/prometheus"
 
 	"github.com/prometheus/prom2json"
 	log "github.com/sirupsen/logrus"
 )
 
-// task that queries darkstat metrics and aggregates them into usable planet metrics
+// task that queries darkstat metrics and aggregates them into usable planet metrics.
 type task struct {
 	enabled          bool
 	darkstatAddr     string
@@ -47,8 +48,8 @@ var (
 )
 
 func init() {
-	httpTransport := &http.Transport{
-		DialContext: (&net.Dialer{
+	httpTransport := &http.Transport{ // nolint:exhaustivestruct
+		DialContext: (&net.Dialer{ // nolint:exhaustivestruct
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
@@ -56,7 +57,7 @@ func init() {
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
-		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, // nolint:gosec,exhaustivestruct
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 
@@ -65,10 +66,11 @@ func init() {
 		hosts:            []Metric{},
 		mu:               sync.Mutex{},
 		prometheusClient: prometheus.New(httpTransport),
+		darkstatAddr:     "",
 	}
 }
 
-// InitTask initial states
+// InitTask initial states.
 func InitTask(ctx context.Context, enabled bool, darkstatAddr string) {
 	once.Do(func() {
 		singleton.enabled = enabled
@@ -76,7 +78,7 @@ func InitTask(ctx context.Context, enabled bool, darkstatAddr string) {
 	})
 }
 
-// Metric contains values needed for planet metrics
+// Metric contains values needed for planet metrics.
 type Metric struct {
 	Direction       string // ingress or egress
 	LocalHostgroup  string // e.g. hostgroup
@@ -87,7 +89,7 @@ type Metric struct {
 	Bandwidth       float64
 }
 
-// Get returns latest metrics from singleton
+// Get returns latest metrics from singleton.
 func Get() []Metric {
 	singleton.mu.Lock()
 	hosts := singleton.hosts
@@ -96,14 +98,21 @@ func Get() []Metric {
 	return hosts
 }
 
-// Collect will process darkstats metrics locally and fill singleton with latest data
+var (
+	// ErrHostBytesTotalMetricsNotFound metrics host_bytes_total not found.
+	ErrHostBytesTotalMetricsNotFound = fmt.Errorf("metric host_bytes_total not found")
+	// ErrEmptyDarkstatAddr empty darkstat address.
+	ErrEmptyDarkstatAddr = fmt.Errorf("darkstat address is empty")
+)
+
+// Collect will process darkstats metrics locally and fill singleton with latest data.
 func Collect(ctx context.Context) error {
 	if !singleton.enabled {
 		return nil
 	}
 
 	if singleton.darkstatAddr == "" {
-		return fmt.Errorf("Darkstat address is empty")
+		return ErrEmptyDarkstatAddr
 	}
 
 	startTime := time.Now()
@@ -115,16 +124,17 @@ func Collect(ctx context.Context) error {
 	var darkstatHostBytesTotalMetric *prom2json.Family
 	darkstatScrape, err := singleton.prometheusClient.Scrape(ctxCollect, singleton.darkstatAddr)
 	if err != nil {
-		return err
+		return fmt.Errorf("error on darkstat metrics scrape: %w", err)
 	}
 	for _, v := range darkstatScrape {
 		if v.Name == "host_bytes_total" {
 			darkstatHostBytesTotalMetric = v
+
 			break
 		}
 	}
 	if darkstatHostBytesTotalMetric == nil {
-		return fmt.Errorf("Metric host_bytes_total doesn't exist")
+		return ErrHostBytesTotalMetricsNotFound
 	}
 
 	// Extract relevant data out of host_bytes_total
@@ -139,18 +149,19 @@ func Collect(ctx context.Context) error {
 
 	log.Debugf("taskdarkstat.Collect retrieved %v downstreams metrics", len(hosts))
 	log.Debugf("taskdarkstat.Collect process took %v", time.Since(startTime))
+
 	return nil
 }
 
 // toHostMetrics converts darkstatHostBytesTotal metrics into planet explorer prometheus metrics.
 func toHostMetrics(darkstatHostBytesTotal *prom2json.Family) ([]Metric, error) {
-	var hosts []Metric
+	hosts := []Metric{}
 
 	inventoryHosts := inventory.Get()
 
 	localAddr, err := network.LocalIP()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting local IP address: %w", err)
 	}
 	// To label source traffic that we need to build dependency graph
 	localHostgroup := localAddr.String()
@@ -164,7 +175,12 @@ func toHostMetrics(darkstatHostBytesTotal *prom2json.Family) ([]Metric, error) {
 	}
 
 	for _, m := range darkstatHostBytesTotal.Metrics {
-		metric := m.(prom2json.Metric)
+		metric, ok := m.(prom2json.Metric)
+		if !ok {
+			log.Warnf("Failed to parse darkstat host_bytes_total metrics: %v", m)
+
+			continue
+		}
 
 		// Skip its own IP.
 		// We're not interested in traffic coming from and going to itself.
@@ -178,6 +194,7 @@ func toHostMetrics(darkstatHostBytesTotal *prom2json.Family) ([]Metric, error) {
 		bandwidth, err := strconv.ParseFloat(metric.Value, 64)
 		if err != nil {
 			log.Errorf("Failed to parse 'host_bytes_total' value: %v", err)
+
 			continue
 		}
 

@@ -17,15 +17,16 @@ package socketstat
 import (
 	"context"
 	"fmt"
-	"planet-exporter/collector/task/inventory"
-	"planet-exporter/pkg/network"
 	"sync"
 	"time"
+
+	"planet-exporter/collector/task/inventory"
+	"planet-exporter/pkg/network"
 
 	log "github.com/sirupsen/logrus"
 )
 
-// task that queries local socket info and aggregates them into usable planet metrics
+// task that queries local socket info and aggregates them into usable planet metrics.
 type task struct {
 	enabled bool
 
@@ -35,9 +36,7 @@ type task struct {
 	mu              sync.Mutex
 }
 
-var (
-	singleton task
-)
+var singleton task
 
 func init() {
 	singleton = task{
@@ -49,19 +48,19 @@ func init() {
 	}
 }
 
-// InitTask initial states
+// InitTask initial states.
 func InitTask(ctx context.Context, enabled bool) {
 	singleton.enabled = enabled
 }
 
-// Process that binds on one or more network interfaces
+// Process that binds on one or more network interfaces.
 type Process struct {
 	Name string // e.g. "node_exporter"
 	Bind string // e.g. "0.0.0.0:9100"
 	Port string // e.g. "9100"
 }
 
-// Connections socket connection metrics
+// Connections socket connection metrics.
 type Connections struct {
 	LocalHostgroup  string
 	LocalAddress    string
@@ -72,7 +71,7 @@ type Connections struct {
 	ProcessName     string
 }
 
-// Get returns latest metrics from singleton
+// Get returns latest metrics from singleton.
 func Get() ([]Process, []Connections, []Connections) {
 	singleton.mu.Lock()
 	up := singleton.upstreams
@@ -83,7 +82,8 @@ func Get() ([]Process, []Connections, []Connections) {
 	return serverProcesses, up, down
 }
 
-// Collect will collect fill singleton with latest data
+// Collect will collect fill singleton with latest data.
+// nolint:cyclop
 func Collect(ctx context.Context) error {
 	if !singleton.enabled {
 		return nil
@@ -97,14 +97,14 @@ func Collect(ctx context.Context) error {
 	// Get server connection stat
 	serverConnectionStat, err := network.ServerConnections(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting server connections: %w", err)
 	}
 	serverProcesses, listeningPortsConns := parseProcessesAndListenPortsConns(serverConnectionStat)
 
 	// Find current IP to replace loop-back address
 	currentIP, err := network.LocalIP()
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting local IP address: %w", err)
 	}
 
 	// Upstreams and downstreams from every peered connection sockets (e.g. "ss -pant")
@@ -156,7 +156,6 @@ func Collect(ctx context.Context) error {
 				Protocol:        peeredConn.Protocol,
 				ProcessName:     peeredConn.ProcessName,
 			})
-
 		} else if remoteAddr != "localhost" {
 			// It's an upstream connection otherwise.
 
@@ -191,6 +190,7 @@ func Collect(ctx context.Context) error {
 	log.Debugf("tasksocketstat.Collect retrieved %v upstreams metrics", len(upstreams))
 	log.Debugf("tasksocketstat.Collect retrieved %v downstreams metrics", len(downstreams))
 	log.Debugf("tasksocketstat.Collect process took %v", time.Since(startTime))
+
 	return nil
 }
 
@@ -205,33 +205,34 @@ func parseProcessesAndListenPortsConns(serverConnectionStat network.ServerConnec
 	listeningPortsConns := make(map[uint32]network.ListeningConnSocket)
 
 	// Iterate over connection sockets that are in LISTEN state
-	for _, v := range serverConnectionStat.ListeningConnSockets {
+	for _, listeningConn := range serverConnectionStat.ListeningConnSockets {
 		// Build serverProcesses from server LISTEN sockets
 		processes = append(processes, Process{
-			Name: v.ProcessName,
-			Bind: fmt.Sprintf("%v:%v", v.LocalIP, v.LocalPort),
-			Port: fmt.Sprint(v.LocalPort),
+			Name: listeningConn.ProcessName,
+			Bind: fmt.Sprintf("%v:%v", listeningConn.LocalIP, listeningConn.LocalPort),
+			Port: fmt.Sprint(listeningConn.LocalPort),
 		})
 
 		// Build list of listening server ports from server LISTEN sockets
-		listeningPortsConns[v.LocalPort] = v
-		log.Debugf("Server listening on: %v:%v [process:%v]", v.LocalIP, v.LocalPort, v.ProcessName)
+		listeningPortsConns[listeningConn.LocalPort] = listeningConn
+		log.Debugf("Server listening on: %v:%v [process:%v]", listeningConn.LocalIP, listeningConn.LocalPort, listeningConn.ProcessName)
 	}
 
 	return processes, listeningPortsConns
 }
 
-// getInventoryAddrAndHostgroup returns address/domain and hostgroup of the given IP based on inventory data
-func getInventoryAddrAndHostgroup(ip string) (string, string) {
+// getInventoryAddrAndHostgroup returns address/domain and hostgroup of the given IP based on inventory data.
+func getInventoryAddrAndHostgroup(targetIP string) (string, string) {
 	inventoryHosts := inventory.Get()
 
 	var addr, hostgroup string
-	if host, found := inventoryHosts.GetHost(ip); found {
+	if host, found := inventoryHosts.GetHost(targetIP); found {
 		addr = host.Domain
 		hostgroup = host.Hostgroup
 	}
 	if addr == "" {
-		addr = ip
+		addr = targetIP
 	}
+
 	return addr, hostgroup
 }

@@ -22,12 +22,13 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"planet-exporter/collector/task/inventory"
-	"planet-exporter/pkg/network"
-	"planet-exporter/pkg/prometheus"
 	"strconv"
 	"sync"
 	"time"
+
+	"planet-exporter/collector/task/inventory"
+	"planet-exporter/pkg/network"
+	"planet-exporter/pkg/prometheus"
 
 	"github.com/prometheus/prom2json"
 	log "github.com/sirupsen/logrus"
@@ -56,8 +57,8 @@ const (
 )
 
 func init() {
-	httpTransport := &http.Transport{
-		DialContext: (&net.Dialer{
+	httpTransport := &http.Transport{ // nolint:exhaustivestruct
+		DialContext: (&net.Dialer{ // nolint:exhaustivestruct
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
@@ -65,7 +66,7 @@ func init() {
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
-		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, // nolint:gosec,exhaustivestruct
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 
@@ -74,6 +75,7 @@ func init() {
 		hosts:            []Metric{},
 		mu:               sync.Mutex{},
 		prometheusClient: prometheus.New(httpTransport),
+		ebpfAddr:         "",
 	}
 }
 
@@ -105,14 +107,22 @@ func Get() []Metric {
 	return hosts
 }
 
+var (
+	// ErrMetricsNotFound metrics does not exists.
+	ErrMetricsNotFound = fmt.Errorf("metrics does not exists")
+	// ErrEmptyEBPFAddr ebpf address is empty.
+	ErrEmptyEBPFAddr = fmt.Errorf("ebpf address is empty")
+)
+
 // Collect will process ebpf metrics locally and fill singleton with latest data.
+// nolint:cyclop
 func Collect(ctx context.Context) error {
 	if !singleton.enabled {
 		return nil
 	}
 
 	if singleton.ebpfAddr == "" {
-		return fmt.Errorf("eBPF address is empty")
+		return ErrEmptyEBPFAddr
 	}
 
 	startTime := time.Now()
@@ -123,7 +133,7 @@ func Collect(ctx context.Context) error {
 	// Scrape ebpf prometheus endpoint for send_bytes_metric and recv_bytes_metric.
 	ebpfScrape, err := singleton.prometheusClient.Scrape(ctxCollect, singleton.ebpfAddr)
 	if err != nil {
-		return err
+		return fmt.Errorf("error on ebpf metrics scrape: %w", err)
 	}
 	var sendBytesMetric *prom2json.Family
 	var recvBytesMetric *prom2json.Family
@@ -139,10 +149,10 @@ func Collect(ctx context.Context) error {
 		}
 	}
 	if sendBytesMetric == nil {
-		return fmt.Errorf("Metric %v doesn't exist", sendBytes)
+		return ErrMetricsNotFound
 	}
 	if recvBytesMetric == nil {
-		return fmt.Errorf("Metric %v doesn't exist", recvBytes)
+		return ErrMetricsNotFound
 	}
 
 	sendHostBytes, err := toHostMetrics(sendBytesMetric, egress)
@@ -155,22 +165,23 @@ func Collect(ctx context.Context) error {
 	}
 
 	singleton.mu.Lock()
-	singleton.hosts = append(sendHostBytes, recvHostBytes...)
+	singleton.hosts = append(sendHostBytes, recvHostBytes...) // nolint:gocritic
 	singleton.mu.Unlock()
 
 	log.Debugf("taskebpf.Collect retrieved %v metrics", len(sendHostBytes)+len(recvHostBytes))
 	log.Debugf("taskebpf.Collect process took %v", time.Since(startTime))
+
 	return nil
 }
 
 // toHostMetrics converts ebpf metrics into planet explorer prometheus metrics.
 func toHostMetrics(bytesMetric *prom2json.Family, direction string) ([]Metric, error) {
-	var hosts []Metric
+	hosts := []Metric{}
 	inventoryHosts := inventory.Get()
 
 	currentIP, err := network.LocalIP()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting local IP address: %w", err)
 	}
 
 	// To label source traffic that we need to build dependency graph.
@@ -185,7 +196,12 @@ func toHostMetrics(bytesMetric *prom2json.Family, direction string) ([]Metric, e
 	}
 
 	for _, m := range bytesMetric.Metrics {
-		metric := m.(prom2json.Metric)
+		metric, ok := m.(prom2json.Metric)
+		if !ok {
+			log.Warnf("Failed to parse ebpf metrics: %v", m)
+
+			continue
+		}
 
 		// Skip its own IP.
 		// We're not interested in traffic coming from and going to itself.
@@ -199,6 +215,7 @@ func toHostMetrics(bytesMetric *prom2json.Family, direction string) ([]Metric, e
 		bandwidth, err := strconv.ParseFloat(metric.Value, 64)
 		if err != nil {
 			log.Errorf("Failed to parse 'bytes_metric' value: %v", err)
+
 			continue
 		}
 
@@ -212,5 +229,6 @@ func toHostMetrics(bytesMetric *prom2json.Family, direction string) ([]Metric, e
 			Bandwidth:       bandwidth,
 		})
 	}
+
 	return hosts, nil
 }

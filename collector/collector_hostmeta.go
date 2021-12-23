@@ -15,13 +15,15 @@
 package collector
 
 import (
+	"fmt"
 	"os"
+
 	"planet-exporter/collector/task/inventory"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// hostmetaCollector on host related metadata
+// hostmetaCollector on host related metadata.
 type hostmetaCollector struct {
 	hostname *prometheus.Desc
 }
@@ -30,7 +32,7 @@ func init() {
 	registerCollector("hostmeta", NewHostmetaCollector)
 }
 
-// NewHostmetaCollector service
+// NewHostmetaCollector service.
 func NewHostmetaCollector() (Collector, error) {
 	return &hostmetaCollector{
 		hostname: prometheus.NewDesc(
@@ -41,16 +43,17 @@ func NewHostmetaCollector() (Collector, error) {
 	}, nil
 }
 
-// Update implements Collector interface
-func (c hostmetaCollector) Update(ch chan<- prometheus.Metric) error {
+// Update implements Collector interface.
+func (c hostmetaCollector) Update(prometheusMetricsCh chan<- prometheus.Metric) error {
 	hostname, err := os.Hostname()
 	if err != nil {
 		// Kernel is probably drunk
-		return err
+		return fmt.Errorf("error getting hostname: %w", err)
 	}
 	localInventory := inventory.GetLocalInventory()
 
-	ch <- prometheus.MustNewConstMetric(c.hostname, prometheus.GaugeValue, 1,
+	prometheusMetricsCh <- prometheus.MustNewConstMetric(c.hostname, prometheus.GaugeValue, 1,
 		localInventory.Hostgroup, hostname, localInventory.Domain, localInventory.IPAddress)
+
 	return nil
 }

@@ -16,44 +16,46 @@ package network
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"syscall"
 
 	"planet-exporter/pkg/process"
 
 	psutilnet "github.com/shirou/gopsutil/net"
+	log "github.com/sirupsen/logrus"
 )
 
-// PeeredConnSocket represents connection socket with a peer (sockets in ESTABLISHED and TIME_WAIT states)
+// PeeredConnSocket represents connection socket with a peer (sockets in ESTABLISHED and TIME_WAIT states).
 type PeeredConnSocket struct {
-	LocalIP     string
 	LocalPort   uint32
-	RemoteIP    string
 	RemotePort  uint32
+	LocalIP     string
+	RemoteIP    string
 	Protocol    string
 	ProcessName string
 }
 
-// ListeningConnSocket represents a connection socket from a listening server process (sockets in LISTEN state)
+// ListeningConnSocket represents a connection socket from a listening server process (sockets in LISTEN state).
 type ListeningConnSocket struct {
-	LocalIP     string
-	LocalPort   uint32
 	ProcessPid  int32
+	LocalPort   uint32
+	LocalIP     string
 	ProcessName string
 }
 
-// ServerConnectionStat represents a connection status, similar to netstat or "ss -pant" and "ss -pantl"
+// ServerConnectionStat represents a connection status, similar to netstat or "ss -pant" and "ss -pantl".
 type ServerConnectionStat struct {
 	PeeredConnSockets    []PeeredConnSocket
 	ListeningConnSockets []ListeningConnSocket
 }
 
 // ServerConnections returns LISTENING ports and peer connection tuples that are in ESTABLISHED or TIME_WAIT state
-// Limited to 4096 connections per running process
+// Limited to 4096 connections per running process.
 func ServerConnections(ctx context.Context) (ServerConnectionStat, error) {
 	processTable, err := process.GetProcessTable(ctx)
 	if err != nil {
-		return ServerConnectionStat{}, err
+		return ServerConnectionStat{}, fmt.Errorf("error getting server process table: %w", err)
 	}
 
 	// "01": "ESTABLISHED",
@@ -61,7 +63,7 @@ func ServerConnections(ctx context.Context) (ServerConnectionStat, error) {
 	// "0A": "LISTEN",
 	allConns, err := psutilnet.ConnectionsMaxWithContext(ctx, "all", 4096)
 	if err != nil {
-		return ServerConnectionStat{}, err
+		return ServerConnectionStat{}, fmt.Errorf("error getting server connections: %w", err)
 	}
 
 	// Listening connection sockets
@@ -70,7 +72,7 @@ func ServerConnections(ctx context.Context) (ServerConnectionStat, error) {
 	peeredConns := []PeeredConnSocket{}
 
 	for _, conn := range allConns {
-		proto := ""
+		var proto string
 		switch conn.Type {
 		case syscall.SOCK_STREAM:
 			proto = "tcp"
@@ -107,16 +109,26 @@ func ServerConnections(ctx context.Context) (ServerConnectionStat, error) {
 	}, nil
 }
 
+// ErrLocalIPNotFound failed to retrieve local IP address.
+var ErrLocalIPNotFound = fmt.Errorf("failed to retrieve local IP address")
+
 // LocalIP returns default local IP address
 // Note the "udp" protocol. The net.Dial() call won't actually establish any connection.
 func LocalIP() (net.IP, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:53")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating UDP dial connection: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Errorf("error when closing conn: %v", err)
+		}
+	}()
 
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	localAddr, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		return nil, ErrLocalIPNotFound
+	}
 
 	return localAddr.IP, nil
 }

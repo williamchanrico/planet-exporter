@@ -19,15 +19,16 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"planet-exporter/pkg/network"
 	"strings"
 	"sync"
 	"time"
 
+	"planet-exporter/pkg/network"
+
 	log "github.com/sirupsen/logrus"
 )
 
-// task that queries inventory data and aggregates them into usable inventory
+// task that queries inventory data and aggregates them into usable inventory.
 type task struct {
 	enabled         bool
 	inventoryAddr   string
@@ -39,7 +40,7 @@ type task struct {
 }
 
 const (
-	// collectTimeout for inventory requests to upstream
+	// collectTimeout for inventory requests to upstream.
 	collectTimeout = 10 * time.Second
 
 	// Inventory formats:
@@ -67,13 +68,15 @@ func init() {
 			ipAddresses:          make(map[string]Host),
 			networkCIDRAddresses: []networkHost{},
 		},
-		httpClient: &http.Client{
+		httpClient: &http.Client{ // nolint:exhaustivestruct
 			Timeout: collectTimeout,
 		},
+		inventoryFormat: fmtArrayJSON,
+		inventoryAddr:   "",
 	}
 }
 
-// InitTask sets initial states
+// InitTask sets initial states.
 func InitTask(ctx context.Context, enabled bool, inventoryAddr string, inventoryFormat string) {
 	// Validate inventory format
 	if _, ok := supportedInventoryFormats[inventoryFormat]; !ok {
@@ -89,7 +92,7 @@ func InitTask(ctx context.Context, enabled bool, inventoryAddr string, inventory
 	})
 }
 
-// Get returns current inventory data
+// Get returns current inventory data.
 func Get() Inventory {
 	singleton.mu.Lock()
 	hosts := singleton.values
@@ -98,14 +101,17 @@ func Get() Inventory {
 	return hosts
 }
 
-// Collect retrieves real-time inventory data and updates singleton.values
+// ErrEmptyInventoryAddr inventory address is empty.
+var ErrEmptyInventoryAddr = fmt.Errorf("Inventory address is empty")
+
+// Collect retrieves real-time inventory data and updates singleton.values.
 func Collect(ctx context.Context) error {
 	if !singleton.enabled {
 		return nil
 	}
 
 	if singleton.inventoryAddr == "" {
-		return fmt.Errorf("Inventory address is empty")
+		return ErrEmptyInventoryAddr
 	}
 
 	startTime := time.Now()
@@ -130,16 +136,17 @@ func Collect(ctx context.Context) error {
 
 	log.Debugf("taskinventory.Collect retrieved %v hosts", len(hosts))
 	log.Debugf("taskinventory.Collect process took %v", time.Since(startTime))
+
 	return nil
 }
 
-// networkHost represents a mapping of network -> Host info
+// networkHost represents a mapping of network -> Host info.
 type networkHost struct {
 	network *net.IPNet
 	host    Host
 }
 
-// Inventory contains mappings to Host information
+// Inventory contains mappings to Host information.
 type Inventory struct {
 	// ipAddresses maps IP -> Host info
 	ipAddresses map[string]Host
@@ -148,7 +155,7 @@ type Inventory struct {
 }
 
 // GetHost returns a Host information based on IP or Network address, in that order.
-// e.g. address can be "192.168.1.2" or "192.168.0.0/26"
+// e.g. address can be "192.168.1.2" or "192.168.0.0/26".
 func (i Inventory) GetHost(address string) (Host, bool) {
 	// Priority 1: Check for single IP address match for the address within known IP inventory
 	if host, ok := i.ipAddresses[address]; ok {
@@ -157,7 +164,7 @@ func (i Inventory) GetHost(address string) (Host, bool) {
 
 	// Priority 2: Check for longest-prefix match of targetIP within known network CIDR inventory
 	targetIP := net.ParseIP(address)
-	matchedHost := Host{}
+	var matchedHost Host
 	matchedPrefixLen := -1
 	for _, ipNetHost := range i.networkCIDRAddresses {
 		currPrefixLen, _ := ipNetHost.network.Mask.Size()
@@ -171,7 +178,7 @@ func (i Inventory) GetHost(address string) (Host, bool) {
 		return matchedHost, true
 	}
 
-	return Host{}, false
+	return matchedHost, false
 }
 
 // parseInventory parses a list of Host into an Inventory
@@ -194,6 +201,7 @@ func parseInventory(hosts []Host) Inventory {
 			_, network, err := net.ParseCIDR(host.IPAddress)
 			if err != nil {
 				log.Debugf("Failed to parse CIDR address from an inventory host entry (address=%v): %v", host.IPAddress, err)
+
 				continue
 			}
 			networkCIDRAddress := networkHost{
@@ -207,15 +215,14 @@ func parseInventory(hosts []Host) Inventory {
 
 			inventory.ipAddresses[host.IPAddress] = host
 		}
-
 	}
 
 	return inventory
 }
 
-// GetLocalInventory returns an inventory entry for current host
+// GetLocalInventory returns an inventory entry for current host.
 func GetLocalInventory() Host {
-	localHost := Host{}
+	var localHost Host
 	currentIP, err := network.LocalIP()
 	if err != nil {
 		return localHost

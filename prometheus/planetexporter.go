@@ -28,7 +28,7 @@ const (
 	regexExcludedAddresses = "(100.([6-9]|1[0-2]).*|52.*|192.168.*|.*prometheus.*|203.*|163.18.*|130.211.*|f.*|169.254.*|111.*)"
 )
 
-// PlanetExporterTrafficBandwidth represents a single traffic between local and remote hostgroup
+// PlanetExporterTrafficBandwidth represents a single traffic between local and remote hostgroup.
 type PlanetExporterTrafficBandwidth struct {
 	LocalHostgroup         string  `json:"local_hostgroup"` // e.g. hostgroup
 	RemoteHostgroup        string  `json:"remote_hostgroup"`
@@ -38,7 +38,7 @@ type PlanetExporterTrafficBandwidth struct {
 	Direction              string  `json:"direction"`
 }
 
-// QueryPlanetExporterTrafficBandwidth returns list traffic bandwidth data
+// QueryPlanetExporterTrafficBandwidth returns list traffic bandwidth data.
 func (s Service) QueryPlanetExporterTrafficBandwidth(ctx context.Context, startTime time.Time, endTime time.Time) ([]PlanetExporterTrafficBandwidth, error) {
 	// query data as bits per second and only those higher than 1Kbps to reduce noise
 	// include remote services (hostgroup and domain) in the result
@@ -68,18 +68,19 @@ func (s Service) queryPlanetExporterTrafficBandwidth(ctx context.Context, query 
 	}
 
 	trafficBandwidthData := []PlanetExporterTrafficBandwidth{}
-	for _, v := range qrTrafficPeers.(model.Matrix) {
-		localHostgroup, ok := v.Metric["local_hostgroup"]
+	for _, matrix := range qrTrafficPeers.(model.Matrix) {
+		localHostgroup, ok := matrix.Metric["local_hostgroup"]
 		if !ok {
-			log.Warnf("Found empty local_hostgroup: %v", v.Metric.String())
+			log.Warnf("Found empty local_hostgroup: %v", matrix.Metric.String())
+
 			continue
 		}
-		localDomain := v.Metric["local_domain"]
-		remoteHostgroup := v.Metric["remote_hostgroup"]
-		remoteDomain := v.Metric["remote_domain"]
-		direction := v.Metric["direction"]
+		localDomain := matrix.Metric["local_domain"]
+		remoteHostgroup := matrix.Metric["remote_hostgroup"]
+		remoteDomain := matrix.Metric["remote_domain"]
+		direction := matrix.Metric["direction"]
 
-		bw := s.getMaxValueFromSamplePairs(v.Values)
+		bandwidthBitsPerSecond := s.getMaxValueFromSamplePairs(matrix.Values)
 
 		trafficBandwidthData = append(trafficBandwidthData, PlanetExporterTrafficBandwidth{
 			Direction:              string(direction),
@@ -87,27 +88,27 @@ func (s Service) queryPlanetExporterTrafficBandwidth(ctx context.Context, query 
 			RemoteHostgroup:        string(remoteHostgroup),
 			LocalDomain:            string(localDomain),
 			RemoteDomain:           string(remoteDomain),
-			BandwidthBitsPerSecond: bw,
+			BandwidthBitsPerSecond: bandwidthBitsPerSecond,
 		})
 	}
 
 	return trafficBandwidthData, nil
 }
 
-// PlanetExporterUpstreamService represents an upstream service dependency of a local service
-type PlanetExporterUpstreamService struct {
-	LocalHostgroup    string `json:"local_hostgroup"`
-	LocalAddress      string `json:"local_address"`
-	LocalProcessName  string `json:"local_process_name"`
-	UpstreamPort      string `json:"upstream_port"`
-	UpstreamHostgroup string `json:"upstream_hostgroup"`
-	UpstreamAddress   string `json:"upstream_address"`
-	Protocol          string `json:"protocol"`
+// PlanetExporterDependencyService represents an upstream/downstream service dependency of a local service.
+type PlanetExporterDependencyService struct {
+	LocalHostgroup   string
+	LocalAddress     string
+	LocalProcessName string
+	RemotePort       string
+	RemoteHostgroup  string
+	RemoteAddress    string
+	Protocol         string
 }
 
-// QueryPlanetExporterUpstreamServices returns all upstream service dependencies
-func (s Service) QueryPlanetExporterUpstreamServices(ctx context.Context, startTime time.Time, endTime time.Time) ([]PlanetExporterUpstreamService, error) {
-	qr := fmt.Sprintf(`
+// QueryPlanetExporterUpstreamServices returns all upstream service dependencies.
+func (s Service) QueryPlanetExporterUpstreamServices(ctx context.Context, startTime time.Time, endTime time.Time) ([]PlanetExporterDependencyService, error) {
+	query := fmt.Sprintf(`
 			max(
 				max_over_time(
 					planet_upstream{
@@ -121,53 +122,18 @@ func (s Service) QueryPlanetExporterUpstreamServices(ctx context.Context, startT
 				)
 			) by (local_hostgroup, local_address, remote_address, remote_hostgroup, port, process_name, protocol)`,
 		regexExcludedPorts, regexExcludedAddresses)
-	qrUpstreamServices, err := s.queryRange(ctx, qr, startTime, endTime)
+
+	dependencyServices, err := s.queryPlanetExporterDependencyServices(ctx, query, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
 
-	upstreamServices := []PlanetExporterUpstreamService{}
-	for _, v := range qrUpstreamServices.(model.Matrix) {
-		localHostgroup, ok := v.Metric["local_hostgroup"]
-		if !ok {
-			log.Warnf("Found empty local_hostgroup: %v", v.Metric.String())
-			continue
-		}
-		localAddress := v.Metric["local_address"]
-		localProcessName := v.Metric["process_name"]
-		upstreamPort := v.Metric["port"]
-		upstreamHostgroup := v.Metric["remote_hostgroup"]
-		upstreamAddress := v.Metric["remote_address"]
-		protocol := v.Metric["protocol"]
-
-		upstreamServices = append(upstreamServices, PlanetExporterUpstreamService{
-			LocalHostgroup:    string(localHostgroup),
-			LocalAddress:      string(localAddress),
-			LocalProcessName:  string(localProcessName),
-			UpstreamPort:      string(upstreamPort),
-			UpstreamHostgroup: string(upstreamHostgroup),
-			UpstreamAddress:   string(upstreamAddress),
-			Protocol:          string(protocol),
-		})
-	}
-
-	return upstreamServices, nil
+	return dependencyServices, nil
 }
 
-// PlanetExporterDownstreamService represents an downstream service dependency of a local service
-type PlanetExporterDownstreamService struct {
-	LocalHostgroup      string `json:"local_hostgroup"`
-	LocalAddress        string `json:"local_address"`
-	LocalProcessName    string `json:"local_process_name"`
-	LocalPort           string `json:"local_port"`
-	DownstreamHostgroup string `json:"downstream_hostgroup"`
-	DownstreamAddress   string `json:"downstream_address"`
-	Protocol            string `json:"protocol"`
-}
-
-// QueryPlanetExporterDownstreamServices returns all downstream service dependencies
-func (s Service) QueryPlanetExporterDownstreamServices(ctx context.Context, startTime time.Time, endTime time.Time) ([]PlanetExporterDownstreamService, error) {
-	qr := fmt.Sprintf(`
+// QueryPlanetExporterDownstreamServices returns all downstream service dependencies.
+func (s Service) QueryPlanetExporterDownstreamServices(ctx context.Context, startTime time.Time, endTime time.Time) ([]PlanetExporterDependencyService, error) {
+	query := fmt.Sprintf(`
 			max(
 				max_over_time(
 					planet_downstream{
@@ -181,35 +147,46 @@ func (s Service) QueryPlanetExporterDownstreamServices(ctx context.Context, star
 				)
 			) by (local_hostgroup, local_address, remote_address, remote_hostgroup, port, process_name, protocol)`,
 		regexExcludedPorts, regexExcludedAddresses)
-	qrDownstreamServices, err := s.queryRange(ctx, qr, startTime, endTime)
+
+	downstreamServices, err := s.queryPlanetExporterDependencyServices(ctx, query, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
 
-	downstreamServices := []PlanetExporterDownstreamService{}
-	for _, v := range qrDownstreamServices.(model.Matrix) {
-		localHostgroup, ok := v.Metric["local_hostgroup"]
+	return downstreamServices, nil
+}
+
+func (s Service) queryPlanetExporterDependencyServices(ctx context.Context, query string, startTime, endTime time.Time) ([]PlanetExporterDependencyService, error) {
+	resultDependencyServices, err := s.queryRange(ctx, query, startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	dependencyServices := []PlanetExporterDependencyService{}
+	for _, matrix := range resultDependencyServices.(model.Matrix) {
+		localHostgroup, ok := matrix.Metric["local_hostgroup"]
 		if !ok {
-			log.Warnf("Found empty local_hostgroup: %v", v.Metric.String())
+			log.Warnf("Found empty local_hostgroup: %v", matrix.Metric.String())
+
 			continue
 		}
-		localAddress := v.Metric["local_address"]
-		localProcessName := v.Metric["process_name"]
-		localPort := v.Metric["port"]
-		downstreamHostgroup := v.Metric["remote_hostgroup"]
-		downstreamAddress := v.Metric["remote_address"]
-		protocol := v.Metric["protocol"]
+		localAddress := matrix.Metric["local_address"]
+		localProcessName := matrix.Metric["process_name"]
+		remotePort := matrix.Metric["port"]
+		remoteHostgroup := matrix.Metric["remote_hostgroup"]
+		remoteAddress := matrix.Metric["remote_address"]
+		protocol := matrix.Metric["protocol"]
 
-		downstreamServices = append(downstreamServices, PlanetExporterDownstreamService{
-			LocalHostgroup:      string(localHostgroup),
-			LocalAddress:        string(localAddress),
-			LocalProcessName:    string(localProcessName),
-			LocalPort:           string(localPort),
-			DownstreamHostgroup: string(downstreamHostgroup),
-			DownstreamAddress:   string(downstreamAddress),
-			Protocol:            string(protocol),
+		dependencyServices = append(dependencyServices, PlanetExporterDependencyService{
+			LocalHostgroup:   string(localHostgroup),
+			LocalAddress:     string(localAddress),
+			LocalProcessName: string(localProcessName),
+			RemotePort:       string(remotePort),
+			RemoteHostgroup:  string(remoteHostgroup),
+			RemoteAddress:    string(remoteAddress),
+			Protocol:         string(protocol),
 		})
 	}
 
-	return downstreamServices, nil
+	return dependencyServices, nil
 }

@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -32,10 +33,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var (
-	version            string
-	showVersionAndExit bool
-)
+var version string
 
 func main() {
 	var err error
@@ -48,9 +46,16 @@ func main() {
 	// TODO: Allows running multiple jobs for federator to catch up faster.
 	var cronJobTimeOffsetDuration string
 
+	var showVersionAndExit bool
+
+	const (
+		defaultInfluxBatchSize      = 20
+		defaultCronJobTimeoutSecond = 30
+	)
+
 	// Main
-	flag.StringVar(&config.CronJobSchedule, "cron-job-schedule", "*/30 * * * * *", "Cron jobs schedule (Quartz Scheduler format: s m h dom mo dow y) to pre-process planet-exporter metrics into federator backend")
-	flag.IntVar(&config.CronJobTimeoutSecond, "cron-job-timeout-second", 30, "Timeout per federator job in second")
+	flag.StringVar(&config.CronJobSchedule, "cron-job-schedule", "*/30 * * * * *", "Cron jobs schedule (Quartz: s m h dom mo dow y) to pre-process planet-exporter metrics")
+	flag.IntVar(&config.CronJobTimeoutSecond, "cron-job-timeout-second", defaultCronJobTimeoutSecond, "Timeout per federator job in second")
 	flag.StringVar(&cronJobTimeOffsetDuration, "cron-job-time-offset", "0s", "Cron jobs time offset. (e.g. '-1h5m' to query data from 1 hour 5 minutes ago)")
 	flag.StringVar(&config.LogLevel, "log-level", "info", "Log level")
 	flag.BoolVar(&config.LogDisableTimestamp, "log-disable-timestamp", false, "Disable timestamp on logger")
@@ -62,7 +67,7 @@ func main() {
 	flag.StringVar(&config.InfluxdbToken, "influxdb-token", "", "Target Influxdb token")
 	flag.StringVar(&config.InfluxdbOrg, "influxdb-org", "mothership", "Influxdb organization")
 	flag.StringVar(&config.InfluxdbBucket, "influxdb-bucket", "mothership", "Influxdb bucket")
-	flag.IntVar(&config.InfluxdbBatchSize, "influxdb-batch-size", 20, "Influxdb batch size")
+	flag.IntVar(&config.InfluxdbBatchSize, "influxdb-batch-size", defaultInfluxBatchSize, "Influxdb batch size")
 
 	// Prometheus
 	flag.StringVar(&config.PrometheusAddr, "prometheus-addr", "http://127.0.0.1:9090/", "Prometheus address containing planet-exporter metrics")
@@ -70,7 +75,7 @@ func main() {
 	flag.Parse()
 
 	if showVersionAndExit {
-		fmt.Printf("planet-federator %v\n", version)
+		fmt.Println("planet-federator", version) // nolint:forbidigo
 		os.Exit(0)
 	}
 
@@ -79,7 +84,7 @@ func main() {
 		log.Fatalf("Error parsing cron-job-time-offset-minute: %v", err)
 	}
 
-	log.SetFormatter(&log.TextFormatter{
+	log.SetFormatter(&log.TextFormatter{ // nolint:exhaustivestruct
 		DisableColors:    config.LogDisableColors,
 		DisableTimestamp: config.LogDisableTimestamp,
 		FullTimestamp:    true,
@@ -97,7 +102,8 @@ func main() {
 
 	log.Info("Initialize Prometheus API client")
 	promapiClient, err := promapi.NewClient(promapi.Config{
-		Address: config.PrometheusAddr,
+		Address:      config.PrometheusAddr,
+		RoundTripper: http.DefaultTransport,
 	})
 	if err != nil {
 		log.Fatalf("Error initializing Prometheus client for addr %v: %v", config.PrometheusAddr, err)
@@ -124,7 +130,8 @@ func main() {
 	log.Info("Initialize main service")
 	svc := internal.New(config, federatorSvc, prometheusSvc)
 	if err := svc.Run(ctx); err != nil {
-		log.Fatalf("Main service exit with error: %v", err)
+		log.Errorf("Main service exit with error: %v", err)
+		os.Exit(1) // nolint:gocritic
 	}
 
 	log.Info("Main service exit successfully")

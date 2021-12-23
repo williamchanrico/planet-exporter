@@ -16,42 +16,55 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
 	reuse "github.com/libp2p/go-reuseport"
 )
 
-// Server struct
+// Server struct.
 type Server struct {
 	server  *http.Server
 	handler http.Handler
 }
 
-// New returns a new HTTP server
+// New returns a new HTTP server.
 func New(handler http.Handler) *Server {
+	const (
+		readTimeoutSeconds  = 15
+		writeTimeoutSeconds = 15
+	)
+
 	return &Server{
+		server: &http.Server{ // nolint:exhaustivestruct
+			ReadTimeout:  readTimeoutSeconds * time.Second,
+			WriteTimeout: writeTimeoutSeconds * time.Second,
+			Handler:      handler,
+		},
 		handler: handler,
 	}
 }
 
-// Serve runs server
+// Serve runs server.
 func (s *Server) Serve(addr string) error {
-	s.server = &http.Server{
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		Handler:      s.handler,
-	}
-
 	listener, err := reuse.Listen("tcp4", addr)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating server listener: %w", err)
 	}
 
-	return s.server.Serve(listener)
+	if err = s.server.Serve(listener); err != nil {
+		return fmt.Errorf("error on server serve: %w", err)
+	}
+
+	return nil
 }
 
-// Shutdown server
+// Shutdown server.
 func (s *Server) Shutdown(ctx context.Context) error {
-	return s.server.Shutdown(ctx)
+	if err := s.server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("error on server shutdown: %w", err)
+	}
+
+	return nil
 }

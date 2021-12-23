@@ -23,7 +23,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// networkDependencyCollector on network dependency metrics
+// networkDependencyCollector on network dependency metrics.
 type networkDependencyCollector struct {
 	serverProcesses *prometheus.Desc
 	upstream        *prometheus.Desc
@@ -37,7 +37,7 @@ func init() {
 }
 
 // NewNetworkDependencyCollector service
-// All metrics have current host's Hostgroup identified in the 'local_hostgroup' label
+// All metrics have current host's Hostgroup identified in the 'local_hostgroup' label.
 func NewNetworkDependencyCollector() (Collector, error) {
 	return &networkDependencyCollector{
 		serverProcesses: prometheus.NewDesc(
@@ -68,31 +68,31 @@ func NewNetworkDependencyCollector() (Collector, error) {
 	}, nil
 }
 
-// Update implements the Collector interface
-func (c networkDependencyCollector) Update(ch chan<- prometheus.Metric) error {
+// Update implements the Collector interface.
+func (c networkDependencyCollector) Update(prometheusMetricsCh chan<- prometheus.Metric) error {
 	traffic := darkstat.Get()
 	ebpf := ebpf.Get()
 	serverProcesses, upstreams, downstreams := socketstat.Get()
 	localInventory := inventory.GetLocalInventory()
 
 	for _, m := range traffic {
-		ch <- prometheus.MustNewConstMetric(c.traffic, prometheus.GaugeValue, m.Bandwidth,
+		prometheusMetricsCh <- prometheus.MustNewConstMetric(c.traffic, prometheus.GaugeValue, m.Bandwidth,
 			m.LocalHostgroup, m.Direction, m.RemoteHostgroup, m.RemoteIPAddr, m.LocalDomain, m.RemoteDomain)
 	}
 	for _, m := range ebpf {
-		ch <- prometheus.MustNewConstMetric(c.ebpfTraffic, prometheus.GaugeValue, m.Bandwidth,
+		prometheusMetricsCh <- prometheus.MustNewConstMetric(c.ebpfTraffic, prometheus.GaugeValue, m.Bandwidth,
 			m.LocalHostgroup, m.Direction, m.RemoteHostgroup, m.RemoteIPAddr, m.LocalDomain, m.RemoteDomain)
 	}
 	for _, m := range upstreams {
-		ch <- prometheus.MustNewConstMetric(c.upstream, prometheus.GaugeValue, 1,
+		prometheusMetricsCh <- prometheus.MustNewConstMetric(c.upstream, prometheus.GaugeValue, 1,
 			m.LocalHostgroup, m.RemoteHostgroup, m.LocalAddress, m.RemoteAddress, m.Port, m.Protocol, m.ProcessName)
 	}
 	for _, m := range downstreams {
-		ch <- prometheus.MustNewConstMetric(c.downstream, prometheus.GaugeValue, 1,
+		prometheusMetricsCh <- prometheus.MustNewConstMetric(c.downstream, prometheus.GaugeValue, 1,
 			m.LocalHostgroup, m.RemoteHostgroup, m.LocalAddress, m.RemoteAddress, m.Port, m.Protocol, m.ProcessName)
 	}
 	for _, m := range serverProcesses {
-		ch <- prometheus.MustNewConstMetric(c.serverProcesses, prometheus.GaugeValue, 1,
+		prometheusMetricsCh <- prometheus.MustNewConstMetric(c.serverProcesses, prometheus.GaugeValue, 1,
 			localInventory.Hostgroup, m.Bind, m.Name, m.Port)
 	}
 

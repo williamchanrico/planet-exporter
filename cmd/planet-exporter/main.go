@@ -26,13 +26,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var (
-	version            string
-	showVersionAndExit bool
-)
+var version string
 
 func main() {
 	var config internal.Config
+
+	var showVersionAndExit bool
 
 	// Main
 	flag.StringVar(&config.ListenAddress, "listen-address", "0.0.0.0:19100", "Address to which exporter will bind its HTTP interface")
@@ -59,11 +58,11 @@ func main() {
 	flag.Parse()
 
 	if showVersionAndExit {
-		fmt.Printf("planet-exporter %v\n", version)
+		fmt.Println("planet-exporter", version) // nolint:forbidigo
 		os.Exit(0)
 	}
 
-	log.SetFormatter(&log.TextFormatter{
+	log.SetFormatter(&log.TextFormatter{ // nolint:exhaustivestruct
 		DisableColors:    config.LogDisableColors,
 		DisableTimestamp: config.LogDisableTimestamp,
 		FullTimestamp:    true,
@@ -88,7 +87,8 @@ func main() {
 	log.Info("Initialize main service")
 	svc := internal.New(config, collector)
 	if err := svc.Run(ctx); err != nil {
-		log.Fatalf("Main service exit with error: %v", err)
+		log.Errorf("Main service exit with error: %v", err)
+		os.Exit(1)
 	}
 
 	log.Info("Main service exit successfully")

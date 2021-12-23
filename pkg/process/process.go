@@ -16,24 +16,25 @@ package process
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/mitchellh/go-ps"
 )
 
-// ProcessTable maps between Pid and Process name
-type ProcessTable map[int]string
+// Table maps between Pid and Process name.
+type Table map[int]string
 
-// GetProcessTable returns map of current processes Pid to its executable name
-func GetProcessTable(ctx context.Context) (ProcessTable, error) {
-	p, err := ps.Processes()
+// GetProcessTable returns map of current processes Pid to its executable name.
+func GetProcessTable(ctx context.Context) (Table, error) {
+	processes, err := ps.Processes()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving process list: %w", err)
 	}
 
-	processes := make(ProcessTable)
-	for _, v := range p {
-		processes[v.Pid()] = v.Executable()
+	processTable := make(Table)
+	for _, v := range processes {
+		processTable[v.Pid()] = v.Executable()
 	}
 
-	return processes, nil
+	return processTable, nil
 }

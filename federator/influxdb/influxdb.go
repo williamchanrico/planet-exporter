@@ -25,7 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Backend interface for a time-series DB handling pre-processed planet-exporter data
+// Backend interface for a time-series DB handling pre-processed planet-exporter data.
 type Backend struct {
 	client   influxdb2.Client
 	writeAPI influxdb2api.WriteAPI
@@ -33,9 +33,9 @@ type Backend struct {
 	bucket   string
 }
 
-// New returns new influxdb federator backend
-func New(c influxdb2.Client, org, bucket string) Backend {
-	writeAPI := c.WriteAPI(org, bucket)
+// New returns new influxdb federator backend.
+func New(influxdbClient influxdb2.Client, org, bucket string) Backend {
+	writeAPI := influxdbClient.WriteAPI(org, bucket)
 
 	errChan := writeAPI.Errors()
 	go func() {
@@ -45,7 +45,7 @@ func New(c influxdb2.Client, org, bucket string) Backend {
 	}()
 
 	return Backend{
-		client:   c,
+		client:   influxdbClient,
 		writeAPI: writeAPI,
 		org:      org,
 		bucket:   bucket,
@@ -53,7 +53,7 @@ func New(c influxdb2.Client, org, bucket string) Backend {
 }
 
 const (
-	// Measurements
+	// Measurements.
 
 	upstreamServiceMeasurement   = "upstream"
 	downstreamServiceMeasurement = "downstream"
@@ -62,7 +62,7 @@ const (
 	egressDirectionMeasurement  = "egress"
 	unknownDirectionMeasurement = "unknown"
 
-	// Tags
+	// Tags.
 
 	localServiceHostgroupTag   = "service"
 	localServiceAddressTag     = "address"
@@ -81,7 +81,7 @@ const (
 
 	protocolTag = "protocol"
 
-	// Fields
+	// Fields.
 
 	bandwidthBpsField      = "bandwidth_bps"
 	serviceDependencyField = "service_dependency"
@@ -98,8 +98,8 @@ const (
 //   GROUP BY
 //     time($__interval), "service", "remote_service", "remote_address"
 //
-func (b Backend) AddTrafficBandwidthData(ctx context.Context, trafficBandwidth federator.TrafficBandwidth, t time.Time) error {
-	measurement := ""
+func (b Backend) AddTrafficBandwidthData(ctx context.Context, trafficBandwidth federator.TrafficBandwidth, timeOfDataPoint time.Time) error {
+	var measurement string
 	switch trafficBandwidth.Direction {
 	case "ingress":
 		measurement = ingressDirectionMeasurement
@@ -108,17 +108,18 @@ func (b Backend) AddTrafficBandwidthData(ctx context.Context, trafficBandwidth f
 	default:
 		measurement = unknownDirectionMeasurement
 	}
-	return b.addBytesMeasurement(ctx, measurement, trafficBandwidth, t)
+
+	return b.addBytesMeasurement(ctx, measurement, trafficBandwidth, timeOfDataPoint)
 }
 
-func (b Backend) addBytesMeasurement(ctx context.Context, measurement string, trafficBandwidth federator.TrafficBandwidth, t time.Time) error {
+func (b Backend) addBytesMeasurement(ctx context.Context, measurement string, trafficBandwidth federator.TrafficBandwidth, timeOfDataPoint time.Time) error { // nolint:unparam
 	dataPoint := influxdb2.NewPointWithMeasurement(measurement).
 		AddTag(localServiceHostgroupTag, trafficBandwidth.LocalHostgroup).
 		AddTag(localServiceAddressTag, trafficBandwidth.LocalAddress).
 		AddTag(remoteServiceHostgroupTag, trafficBandwidth.RemoteHostgroup).
 		AddTag(remoteServiceAddressTag, trafficBandwidth.RemoteDomain).
 		AddField(bandwidthBpsField, trafficBandwidth.BitsPerSecond).
-		SetTime(t)
+		SetTime(timeOfDataPoint)
 	b.writeAPI.WritePoint(dataPoint)
 
 	return nil
@@ -133,7 +134,7 @@ func (b Backend) addBytesMeasurement(ctx context.Context, measurement string, tr
 //   )
 //   GROUP BY
 //       "upstream_service", "upstream_address", "process_name", "upstream_port", "protocol", time(10000d)
-func (b Backend) AddUpstreamService(ctx context.Context, upstreamService federator.UpstreamService, t time.Time) error {
+func (b Backend) AddUpstreamService(ctx context.Context, upstreamService federator.UpstreamService, timeOfDataPoint time.Time) error {
 	dataPoint := influxdb2.NewPointWithMeasurement(upstreamServiceMeasurement).
 		AddTag(localServiceHostgroupTag, upstreamService.LocalHostgroup).
 		AddTag(localServiceAddressTag, upstreamService.LocalAddress).
@@ -143,7 +144,7 @@ func (b Backend) AddUpstreamService(ctx context.Context, upstreamService federat
 		AddTag(localServiceProcessNameTag, upstreamService.LocalProcessName).
 		AddTag(protocolTag, upstreamService.Protocol).
 		AddField(serviceDependencyField, 1).
-		SetTime(t)
+		SetTime(timeOfDataPoint)
 	b.writeAPI.WritePoint(dataPoint)
 
 	return nil
@@ -158,7 +159,7 @@ func (b Backend) AddUpstreamService(ctx context.Context, upstreamService federat
 //   )
 //   GROUP BY
 //       "downstream_service", "downstream_address", "process_name", "port", "protocol", time(10000d)
-func (b Backend) AddDownstreamService(ctx context.Context, downstreamService federator.DownstreamService, t time.Time) error {
+func (b Backend) AddDownstreamService(ctx context.Context, downstreamService federator.DownstreamService, timeOfDataPoint time.Time) error {
 	dataPoint := influxdb2.NewPointWithMeasurement(downstreamServiceMeasurement).
 		AddTag(localServiceHostgroupTag, downstreamService.LocalHostgroup).
 		AddTag(localServiceAddressTag, downstreamService.LocalAddress).
@@ -168,13 +169,13 @@ func (b Backend) AddDownstreamService(ctx context.Context, downstreamService fed
 		AddTag(downstreamServiceAddressTag, downstreamService.DownstreamAddress).
 		AddTag(protocolTag, downstreamService.Protocol).
 		AddField(serviceDependencyField, 1).
-		SetTime(t)
+		SetTime(timeOfDataPoint)
 	b.writeAPI.WritePoint(dataPoint)
 
 	return nil
 }
 
-// Flush all influxdb writes
+// Flush all influxdb writes.
 func (b Backend) Flush() {
 	b.writeAPI.Flush()
 }
