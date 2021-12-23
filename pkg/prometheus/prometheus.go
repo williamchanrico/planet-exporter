@@ -60,12 +60,10 @@ func New(httpTransport *http.Transport) *Client {
 // Scrape metrics from a Prometheus HTTP endpoint.
 func (c *Client) Scrape(ctx context.Context, url string) ([]*prom2json.Family, error) {
 	var err error
-	const metricsFamiliesCapacity = 1024
-	mfChan := make(chan *dto.MetricFamily, metricsFamiliesCapacity)
 
-	if err != nil {
-		return nil, err
-	}
+	const metricsFamiliesCapacity = 1024
+
+	mfChan := make(chan *dto.MetricFamily, metricsFamiliesCapacity)
 	err = prom2json.FetchMetricFamilies(url, mfChan, c.httpTransport)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching metric families: %w", err)

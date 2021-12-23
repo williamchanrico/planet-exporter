@@ -163,8 +163,8 @@ func (i Inventory) GetHost(address string) (Host, bool) {
 	}
 
 	// Priority 2: Check for longest-prefix match of targetIP within known network CIDR inventory
-	targetIP := net.ParseIP(address)
 	var matchedHost Host
+	targetIP := net.ParseIP(address)
 	matchedPrefixLen := -1
 	for _, ipNetHost := range i.networkCIDRAddresses {
 		currPrefixLen, _ := ipNetHost.network.Mask.Size()

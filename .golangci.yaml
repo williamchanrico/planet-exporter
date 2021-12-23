@@ -16,6 +16,21 @@ run:
   #   vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
   skip-dirs-use-default: true
 
+linters:
+  enable-all: true
+  disable:
+    - gci
+    - wsl
+    - testpackage
+    - gochecknoinits
+    - gochecknoglobals
+    - gomnd
+    - funlen
+    - paralleltest
+    - gofumpt
+    - ireturn
+    - scopelint
+
 # all available settings of specific linters
 linters-settings:
   enable-all: true
@@ -68,18 +83,6 @@ issues:
     - linters:
         - godox
       text: "TODO:"
-
-    - linters:
-        - gci
-        - gochecknoinits
-        - gochecknoglobals
-        - gomnd
-        - funlen
-        - paralleltest
-        - gofumpt
-        - ireturn
-        - scopelint
-      path: .
 
   # Independently from option `exclude` we use default exclude patterns,
   # it can be disabled by this option. To list all
