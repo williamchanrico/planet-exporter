@@ -31,8 +31,7 @@ jobs:
       checks: write
       contents: read
       pull-requests: write
-    if: github.event_name == 'pull_request'
-    name: runner / golangci-lint
+    name: golangci-lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -41,4 +40,5 @@ jobs:
         with:
           github_token: ${{ secrets.github_token }}
           level: 'warning'
-          reporter: github-pr-check
+          reporter: github-pr-review
+          go_version: '1.17'
