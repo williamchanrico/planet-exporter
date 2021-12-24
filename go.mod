@@ -15,5 +15,6 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/shirou/gopsutil v2.20.8+incompatible
 	github.com/sirupsen/logrus v1.6.0
+	github.com/stretchr/testify v1.7.0
 	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b // indirect
 )
