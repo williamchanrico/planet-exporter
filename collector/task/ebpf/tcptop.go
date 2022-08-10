@@ -191,10 +191,8 @@ func Collect(ctx context.Context) error {
 
 	singleton.mu.Lock()
 	singleton.hosts = append(append(append(sendHostBytesIPV4, recvHostBytesIPV4...), sendHostBytesIPV6...), recvHostBytesIPV6...)
-	//singleton.hosts = append(sendHostBytesIPV4, recvHostBytesIPV4, sendHostBytesIPV6, recvHostBytesIPV6...) // nolint:gocritic (Need to check this)
-	singleton.mu.Unlock()
 
-	log.Debugf("taskebpf.Collect retrieved %v metrics", len(sendHostBytesIPV4)+len(recvHostBytesIPV4), len(sendHostBytesIPV6)+len(recvHostBytesIPV6)) //(Need to check this)
+	log.Debugf("taskebpf.Collect retrieved %v metrics", len(sendHostBytesIPV4)+len(recvHostBytesIPV4), len(sendHostBytesIPV6)+len(recvHostBytesIPV6))
 	log.Debugf("taskebpf.Collect process took %v", time.Since(startTime))
 
 	return nil
