@@ -50,10 +50,12 @@ var (
 )
 
 const (
-	sendBytes = "ebpf_exporter_ipv4_send_bytes"
-	recvBytes = "ebpf_exporter_ipv4_recv_bytes"
-	ingress   = "ingress"
-	egress    = "egress"
+	sendBytesIPV4 = "ebpf_exporter_ipv4_send_bytes"
+	recvBytesIPV4 = "ebpf_exporter_ipv4_recv_bytes"
+	sendBytesIPv6 = "ebpf_exporter_ipv6_send_bytes"
+	recvBytesIPv6 = "ebpf_exporter_ipv6_recv_bytes"
+	ingress       = "ingress"
+	egress        = "egress"
 )
 
 func init() {
@@ -130,45 +132,69 @@ func Collect(ctx context.Context) error {
 	ctxCollect, ctxCollectCancel := context.WithCancel(ctx)
 	defer ctxCollectCancel()
 
-	// Scrape ebpf prometheus endpoint for send_bytes_metric and recv_bytes_metric.
+	// Scrape ebpf prometheus endpoint for send_bytes_metricipv4, send_bytes_metricipv6,recv_bytes_metricipv4 and recv_bytes_metricipv6.
 	ebpfScrape, err := singleton.prometheusClient.Scrape(ctxCollect, singleton.ebpfAddr)
 	if err != nil {
 		return fmt.Errorf("error on ebpf metrics scrape: %w", err)
 	}
-	var sendBytesMetric *prom2json.Family
-	var recvBytesMetric *prom2json.Family
+	var sendBytesMetricIPV4 *prom2json.Family
+	var recvBytesMetricIPV4 *prom2json.Family
+	var sendBytesMetricIPV6 *prom2json.Family
+	var recvBytesMetricIPV6 *prom2json.Family
 	for _, v := range ebpfScrape {
-		if v.Name == sendBytes {
-			sendBytesMetric = v
+		if v.Name == sendBytesIPV4 {
+			sendBytesMetricIPV4 = v
 		}
-		if v.Name == recvBytes {
-			recvBytesMetric = v
+		if v.Name == recvBytesIPV4 {
+			recvBytesMetricIPV4 = v
 		}
-		if sendBytesMetric != nil && recvBytesMetric != nil {
+		if v.Name == sendBytesIPv6 {
+			sendBytesMetricIPV6 = v
+		}
+		if v.Name == recvBytesIPv6 {
+			recvBytesMetricIPV6 = v
+		}
+		if sendBytesMetricIPV4 != nil && recvBytesMetricIPV4 != nil && sendBytesMetricIPV6 != nil && recvBytesMetricIPV6 != nil {
 			break
 		}
 	}
-	if sendBytesMetric == nil {
+	if sendBytesMetricIPV4 == nil {
 		return ErrMetricsNotFound
 	}
-	if recvBytesMetric == nil {
+	if recvBytesMetricIPV4 == nil {
+		return ErrMetricsNotFound
+	}
+	if sendBytesMetricIPV6 == nil {
+		return ErrMetricsNotFound
+	}
+	if recvBytesMetricIPV6 == nil {
 		return ErrMetricsNotFound
 	}
 
-	sendHostBytes, err := toHostMetrics(sendBytesMetric, egress)
+	sendHostBytesIPV4, err := toHostMetrics(sendBytesMetricIPV4, egress)
 	if err != nil {
-		log.Errorf("Conversion to host metric failed for %v, err: %v", sendBytes, err)
+		log.Errorf("Conversion to host metric failed for %v, err: %v", sendBytesIPV4, err)
 	}
-	recvHostBytes, err := toHostMetrics(recvBytesMetric, ingress)
+	recvHostBytesIPV4, err := toHostMetrics(recvBytesMetricIPV4, ingress)
 	if err != nil {
-		log.Errorf("Conversion to host metric failed for %v, err: %v", recvBytes, err)
+		log.Errorf("Conversion to host metric failed for %v, err: %v", recvBytesIPV4, err)
+	}
+
+	sendHostBytesIPV6, err := toHostMetrics(sendBytesMetricIPV6, egress)
+	if err != nil {
+		log.Errorf("Conversion to host metric failed for %v, err: %v", sendBytesIPv6, err)
+	}
+	recvHostBytesIPV6, err := toHostMetrics(recvBytesMetricIPV6, ingress)
+	if err != nil {
+		log.Errorf("Conversion to host metric failed for %v, err: %v", recvBytesIPv6, err)
 	}
 
 	singleton.mu.Lock()
-	singleton.hosts = append(sendHostBytes, recvHostBytes...) // nolint:gocritic
+	singleton.hosts = append(append(append(sendHostBytesIPV4, recvHostBytesIPV4...), sendHostBytesIPV6...), recvHostBytesIPV6...)
 	singleton.mu.Unlock()
 
-	log.Debugf("taskebpf.Collect retrieved %v metrics", len(sendHostBytes)+len(recvHostBytes))
+	log.Debugf("taskebpf.Collect retrieved %v metrics for IPV4", len(sendHostBytesIPV4)+len(recvHostBytesIPV4))
+	log.Debugf("taskebpf.Collect retrieved %v metrics for IPV6", len(sendHostBytesIPV6)+len(recvHostBytesIPV6))
 	log.Debugf("taskebpf.Collect process took %v", time.Since(startTime))
 
 	return nil
