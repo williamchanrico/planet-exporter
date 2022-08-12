@@ -192,9 +192,9 @@ func Collect(ctx context.Context) error {
 	singleton.mu.Lock()
 	singleton.hosts = append(append(append(sendHostBytesIPV4, recvHostBytesIPV4...), sendHostBytesIPV6...), recvHostBytesIPV6...)
 	singleton.mu.Unlock()
-	
+
 	log.Debugf("taskebpf.Collect retrieved %v metrics for IPV4", len(sendHostBytesIPV4)+len(recvHostBytesIPV4))
-  	log.Debugf("taskebpf.Collect retrieved %v metrics for IPV6", len(sendHostBytesIPV6)+len(recvHostBytesIPV6))
+	log.Debugf("taskebpf.Collect retrieved %v metrics for IPV6", len(sendHostBytesIPV6)+len(recvHostBytesIPV6))
 	log.Debugf("taskebpf.Collect process took %v", time.Since(startTime))
 
 	return nil
