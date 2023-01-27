@@ -15,7 +15,7 @@
 <div align="center">
   <!-- Goreleaser Build -->
   <a href="https://github.com/williamchanrico/planet-exporter/releases">
-    <img alt="Goreleaser Build" src="https://img.shields.io/github/workflow/status/williamchanrico/planet-exporter/Release?style=flat-square&label=Goreleaser">
+    <img alt="Goreleaser Build" src="https://img.shields.io/github/actions/workflow/status/williamchanrico/planet-exporter/release.yml?style=flat-square&label=Goreleaser">
   </a>
   <!-- Release -->
   <a href="https://github.com/williamchanrico/planet-exporter/releases">
@@ -29,7 +29,7 @@
   </a>
   <!-- CodeQL Analysis -->
   <a href="https://github.com/williamchanrico/planet-exporter/releases">
-    <img alt="CodeQL Analysis" src="https://img.shields.io/github/workflow/status/williamchanrico/planet-exporter/CodeQL?label=CodeQL&style=flat-square">
+    <img alt="CodeQL Analysis" src="https://img.shields.io/github/actions/workflow/status/williamchanrico/planet-exporter/codeql-analysis.yml?label=CodeQL&style=flat-square">
   </a>
   <!-- Apache License -->
   <a href="https://github.com/williamchanrico/planet-exporter/blob/master/LICENSE"><img
