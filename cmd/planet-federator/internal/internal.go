@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"planet-exporter/federator"
+	"planet-exporter/federator/bigquery"
 	"planet-exporter/prometheus"
 
 	cron "github.com/robfig/cron/v3"
@@ -53,6 +54,10 @@ type Config struct {
 	InfluxdbOrg       string
 	InfluxdbBucket    string
 	InfluxdbBatchSize int
+
+	BigqueryProjectID       string
+	BigqueryTrafficTable    bigquery.TableMetadata
+	BigqueryDependencyTable bigquery.TableMetadata
 
 	PrometheusAddr string
 }
