@@ -158,7 +158,7 @@ func (s Service) TrafficBandwidthJobFunc() {
 		log.Errorf("error querying traffic data from influxdb: %v", err)
 	}
 
-	trafficTableData := []TrafficTableSchema{}
+	trafficTableData := []TrafficTableData{}
 	for _, trafficPeer := range trafficPeers {
 		localAddress := bigquery.NullString{}
 		if trafficPeer.LocalHostgroupAddress != "" {
@@ -170,7 +170,7 @@ func (s Service) TrafficBandwidthJobFunc() {
 			remoteAddress.StringVal = trafficPeer.RemoteHostgroupAddress
 			remoteAddress.Valid = true
 		}
-		trafficTableData = append(trafficTableData, TrafficTableSchema{
+		trafficTableData = append(trafficTableData, TrafficTableData{
 			InventoryDate:             civil.DateTimeOf(jobStartTime),
 			TrafficDirection:          trafficPeer.TrafficDirection,
 			LocalHostgroup:            trafficPeer.LocalHostgroup,
@@ -205,7 +205,7 @@ func (s Service) DependencyDataJobFunc() {
 		log.Errorf("error querying dependency data from influxdb: %v", err)
 	}
 
-	dependencyTableData := []DependencyTableSchema{}
+	dependencyTableData := []DependencyData{}
 	for _, dependency := range dependencies {
 		localProcessName := bigquery.NullString{}
 		if dependency.LocalHostgroupProcessName != "" {
@@ -234,7 +234,7 @@ func (s Service) DependencyDataJobFunc() {
 			remotePort.Valid = true
 		}
 
-		dependencyTableData = append(dependencyTableData, DependencyTableSchema{
+		dependencyTableData = append(dependencyTableData, DependencyData{
 			InventoryDate: civil.DateTimeOf(jobStartTime),
 
 			DependencyDirection:       dependency.Direction,
