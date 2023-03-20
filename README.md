@@ -359,7 +359,7 @@ Read more in [cmd/planet-federator-influxdb-to-bq](./cmd/planet-federator-influx
 
 ```
 $ go version
-go version go1.17 linux/amd64
+go version go1.20 linux/amd64
 ```
 
 > Older Go versions should work fine.
