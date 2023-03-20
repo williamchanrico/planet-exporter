@@ -35,6 +35,8 @@ builds:
       - goos: linux
         goarch: arm
         goarm: 7
+      - goos: windows
+        goarch: arm
       - goarm: mips64
         gomips: hardfloat
 
@@ -53,6 +55,8 @@ builds:
       - goos: linux
         goarch: arm
         goarm: 7
+      - goos: windows
+        goarch: arm
       - goarm: mips64
         gomips: hardfloat
 
@@ -72,7 +76,7 @@ release:
 
   # You can change the name of the GitHub release.
   # Default is `{{.Tag}}`
-  name_template: "{{.ProjectName}}-v{{.Version}}"
+  name_template: '{{.ProjectName}}-v{{.Version}}'
 
 # .goreleaser.yml
 archives:
@@ -82,7 +86,7 @@ archives:
     #   - `{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}`
     # - if format is `binary`:
     #   - `{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}`
-    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: '{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 
     # Set to true, if you want all files in the archive to be in a single directory.
     # If set to true and you extract the archive 'goreleaser_Linux_arm64.tar.gz',
@@ -113,10 +117,10 @@ snapshot:
   # for example).
   #
   # Default is `{{ .Tag }}-SNAPSHOT-{{.ShortCommit}}`.
-  name_template: "{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}"
+  name_template: '{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}'
 
 checksum:
-  name_template: "{{ .ProjectName }}_v{{ .Version }}_checksums.txt"
+  name_template: '{{ .ProjectName }}_v{{ .Version }}_checksums.txt'
 
   # Algorithm to be used.
   # Accepted options are sha256, sha512, sha1, crc32, md5, sha224 and sha384.
