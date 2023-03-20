@@ -192,7 +192,7 @@ func (c *Client) QueryFederatorDependencyLast7d(ctx context.Context) ([]Dependen
 		WHERE
 			("service" != '') AND time > now() - 7d
 		GROUP BY
-			service, upstream_service, upstream_address, process_name, upstream_port, protocol, time(1000d)
+			service, address, upstream_service, upstream_address, process_name, upstream_port, protocol, time(1000d)
 	`
 
 	query := influxdb1.NewQuery(qUpstream, c.database, "")
@@ -209,7 +209,7 @@ func (c *Client) QueryFederatorDependencyLast7d(ctx context.Context) ([]Dependen
 		WHERE
 			("service" != '') AND time > now() - 7d
 		GROUP BY
-			service, downstream_service, downstream_address, process_name, port, protocol, time(1000d)
+			service, address, downstream_service, downstream_address, process_name, port, protocol, time(1000d)
 	`
 
 	query = influxdb1.NewQuery(qDownstream, c.database, "")

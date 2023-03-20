@@ -56,6 +56,7 @@
 - [Tools](#tools)
   * [Planet Federator](#planet-federator)
     + [Example InfluxQL](#example-influxql)
+  * [Planet Federator InfluxDB to BQ](#planet-federator-influxdb-to-bigquery)
 - [Go Version](#go-version)
 - [Contributing](#contributing)
 - [License](#license)
@@ -347,6 +348,12 @@ $ planet-federator \
     -influxdb-addr "http://127.0.0.1:8086" \
     -influxdb-bucket "mothership" # Works as database name if you're using InfluxDB v1.8 and earlier
 ```
+
+## Planet Federator InfluxDB to BigQuery
+
+This tool helps query and aggregate the Planet Federator data further into 2 categories: (1) Traffic Bandwidth data & (2) Dependency list data, for every services, stored in BigQuery tables.
+
+Read more in [cmd/planet-federator-influxdb-to-bq](./cmd/planet-federator-influxdb-to-bq)
 
 # Go Version
 

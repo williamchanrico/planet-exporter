@@ -45,7 +45,7 @@ func main() {
 
 	const (
 		defaultInfluxBatchSize      = 20
-		defaultCronJobTimeoutSecond = 90
+		defaultCronJobTimeoutSecond = 300
 	)
 
 	// Main
@@ -106,7 +106,7 @@ func main() {
 		Addr:     config.InfluxdbAddr,
 		Username: config.InfluxdbUsername,
 		Password: config.InfluxdbPassword,
-		Timeout:  time.Second * 90,
+		Timeout:  time.Second * time.Duration(config.CronJobTimeoutSecond),
 	})
 	if err != nil {
 		fmt.Println("Error creating InfluxDB Client: ", err.Error())
