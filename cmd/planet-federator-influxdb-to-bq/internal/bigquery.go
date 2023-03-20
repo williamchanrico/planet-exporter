@@ -115,8 +115,8 @@ const (
 //     }
 // ]
 
-// TrafficTableSchema represents the schema for traffic table.
-type TrafficTableSchema struct {
+// TrafficTableData represents the schema for traffic table.
+type TrafficTableData struct {
 	InventoryDate             civil.DateTime      `bigquery:"inventory_date"`
 	TrafficDirection          string              `bigquery:"traffic_direction"`
 	LocalHostgroup            string              `bigquery:"local_hostgroup"`
@@ -128,20 +128,43 @@ type TrafficTableSchema struct {
 	TrafficBandwidthBitsAvg1h int64               `bigquery:"traffic_bandwidth_bits_avg_1h"`
 }
 
-// InsertTrafficBandwidthData inserts traffic data.
-func (b backend) InsertTrafficBandwidthData(ctx context.Context, data []TrafficTableSchema) error {
-	inserter := b.trafficTable.Inserter()
-	log.Debugf("InsertTrafficBandwidthData inserter.Put len(data)=%v", len(data))
-	err := inserter.Put(ctx, data)
-	if err != nil {
-		if multiErr, ok := err.(bigquery.PutMultiError); ok {
-			for _, putErr := range multiErr {
-				return fmt.Errorf("failed to insert traffic table, sample row %d, with err: %v", putErr.RowIndex, putErr.Error())
-			}
-		} else {
-			return fmt.Errorf("failed to insert traffic table, with err: %v", err)
+func chunkTrafficTableData(slice []TrafficTableData, chunkSize int) [][]TrafficTableData {
+	var chunks [][]TrafficTableData
+	for {
+		if len(slice) == 0 {
+			break
 		}
-		return err
+		if len(slice) < chunkSize {
+			chunkSize = len(slice)
+		}
+
+		chunks = append(chunks, slice[0:chunkSize])
+		slice = slice[chunkSize:]
+	}
+
+	return chunks
+}
+
+// InsertTrafficBandwidthData inserts traffic data.
+func (b backend) InsertTrafficBandwidthData(ctx context.Context, data []TrafficTableData) error {
+	dataChunks := chunkTrafficTableData(data, 2000)
+	log.Debugf("InsertTrafficBandwidthData len(data)=%v len(dataCunks)=%v", len(data), len(dataChunks))
+
+	// Chunking to avoid HTTP 413 error due to request payload size limit
+	inserter := b.trafficTable.Inserter()
+	for _, dataChunk := range dataChunks {
+		err := inserter.Put(ctx, dataChunk)
+		if err != nil {
+			if multiErr, ok := err.(bigquery.PutMultiError); ok {
+				for _, putErr := range multiErr {
+					return fmt.Errorf("failed to insert traffic table, sample row %d, with err: %v", putErr.RowIndex, putErr.Error())
+				}
+			} else {
+				return fmt.Errorf("failed to insert traffic table, with err: %v", err)
+			}
+			return err
+		}
+
 	}
 
 	return nil
@@ -210,8 +233,8 @@ func (b backend) InsertTrafficBandwidthData(ctx context.Context, data []TrafficT
 //     }
 // ]
 
-// DependencyTableSchema represents the schema for dependency table.
-type DependencyTableSchema struct {
+// DependencyData represents the schema for dependency table.
+type DependencyData struct {
 	InventoryDate civil.DateTime `bigquery:"inventory_date"`
 
 	// DependencyDirection determines whether it's an upstream/downstream dependency.
@@ -234,20 +257,42 @@ type DependencyTableSchema struct {
 	RemoteHostgroupAddressPort bigquery.NullString `bigquery:"remote_hostgroup_address_port"`
 }
 
-// InsertDependencyData inserts dependency data.
-func (b backend) InsertDependencyData(ctx context.Context, data []DependencyTableSchema) error {
-	inserter := b.dependencyTable.Inserter()
-	log.Debugf("InsertDependencyData inserter.Put len(data)=%v", len(data))
-	err := inserter.Put(ctx, data)
-	if err != nil {
-		if multiErr, ok := err.(bigquery.PutMultiError); ok {
-			for _, putErr := range multiErr {
-				return fmt.Errorf("failed to insert multiple rows to the dependency table, sample row %d, with err: %v", putErr.RowIndex, putErr.Error())
-			}
-		} else {
-			return fmt.Errorf("failed to insert dependency table, with err: %v", err)
+func chunkDependencyTableData(slice []DependencyData, chunkSize int) [][]DependencyData {
+	var chunks [][]DependencyData
+	for {
+		if len(slice) == 0 {
+			break
 		}
-		return err
+		if len(slice) < chunkSize {
+			chunkSize = len(slice)
+		}
+
+		chunks = append(chunks, slice[0:chunkSize])
+		slice = slice[chunkSize:]
+	}
+
+	return chunks
+}
+
+// InsertDependencyData inserts dependency data.
+func (b backend) InsertDependencyData(ctx context.Context, data []DependencyData) error {
+	dataChunks := chunkDependencyTableData(data, 2000)
+	log.Debugf("InsertDependencyData len(data)=%v len(dataCunks)=%v", len(data), len(dataChunks))
+
+	// Chunking to avoid HTTP 413 error due to request payload size limit
+	inserter := b.dependencyTable.Inserter()
+	for _, dataChunk := range dataChunks {
+		err := inserter.Put(ctx, dataChunk)
+		if err != nil {
+			if multiErr, ok := err.(bigquery.PutMultiError); ok {
+				for _, putErr := range multiErr {
+					return fmt.Errorf("failed to insert multiple rows to the dependency table, sample row %d, with err: %v", putErr.RowIndex, putErr.Error())
+				}
+			} else {
+				return fmt.Errorf("failed to insert dependency table, with err: %v", err)
+			}
+			return err
+		}
 	}
 
 	return nil
