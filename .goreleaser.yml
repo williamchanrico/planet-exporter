@@ -37,6 +37,8 @@ builds:
         goarm: 7
       - goos: windows
         goarch: arm
+      - goos: windows
+        goarch: arm64
       - goarm: mips64
         gomips: hardfloat
 
@@ -57,6 +59,8 @@ builds:
         goarm: 7
       - goos: windows
         goarch: arm
+      - goos: windows
+        goarch: arm64
       - goarm: mips64
         gomips: hardfloat
 
