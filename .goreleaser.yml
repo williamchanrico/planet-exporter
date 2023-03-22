@@ -30,8 +30,7 @@ builds:
     # List of combinations of GOOS + GOARCH + GOARM to ignore.
     # Default is empty.
     ignore:
-      - goos: darwin
-        goarch: 386
+      - goarch: 386
       - goos: linux
         goarch: arm
         goarm: 7
@@ -52,8 +51,7 @@ builds:
       -X main.version=v{{.Version}}
 
     ignore:
-      - goos: darwin
-        goarch: 386
+      - goarch: 386
       - goos: linux
         goarch: arm
         goarm: 7
@@ -74,8 +72,7 @@ builds:
       -X main.version=v{{.Version}}
 
     ignore:
-      - goos: darwin
-        goarch: 386
+      - goarch: 386
       - goos: linux
         goarch: arm
         goarm: 7
