@@ -1,0 +1,21 @@
+{{ ansible_managed | comment }}
+
+[Unit]
+Description=Planet Federator - Federator Cron
+After=network-online.target
+
+[Service]
+User=root
+ExecStart=/usr/bin/planet-federator \
+	-log-level info \
+	-log-disable-colors \
+	-log-disable-timestamp \
+	-influxdb-token={{ planet_federator_influxdbv1_username }}:{{ planet_federator_influxdbv1_password | default('') }} \
+	-influxdb-addr={{ planet_federator_influxdbv1_addr }} -prometheus-addr {{ planet_federator_config.prometheus.prometheus_addr }}
+LimitNOFILE=16384
+
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

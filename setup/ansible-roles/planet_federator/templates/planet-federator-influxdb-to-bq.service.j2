@@ -1,0 +1,27 @@
+{{ ansible_managed | comment }}
+
+[Unit]
+Description=Planet Federator InfluxDB to BQ - Federator Cron
+After=network-online.target
+
+[Service]
+User=root
+ExecStart=/usr/bin/planet-federator-influxdb-to-bq \
+	-log-level info \
+	-log-disable-colors \
+	-log-disable-timestamp \
+	-bq-project-id {{ planet_federator_bq_project_id }} \
+	-bq-dataset-id {{ planet_federator_bq_dataset_id }} \
+	-bq-traffic-table-id {{ planet_federator_bq_traffic_table_id }} \
+	-bq-dependency-table-id {{ planet_federator_bq_dependency_table_id }} \
+	-influxdb-database={{ planet_federator_influxdbv1_database | default('mothership') }} \
+	-influxdb-username={{ planet_federator_influxdbv1_username | default('planet-federator') }} \
+	-influxdb-password={{ planet_federator_influxdbv1_password | default('') }} \
+	-influxdb-addr={{ planet_federator_influxdbv1_addr }}
+LimitNOFILE=16384
+
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

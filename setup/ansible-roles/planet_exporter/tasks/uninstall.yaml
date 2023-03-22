@@ -1,0 +1,17 @@
+- block:
+    - name: Stop planet-exporter service
+      service:
+        name: planet-exporter
+        state: stopped
+        enabled: no
+  when: ansible_service_mgr == 'upstart'
+
+- block:
+    - name: Configure systemd to use service
+      become: yes
+      systemd:
+        name: planet-exporter.service
+        state: stopped
+        enabled: no
+        daemon_reload: yes
+  when: ansible_service_mgr == 'systemd'

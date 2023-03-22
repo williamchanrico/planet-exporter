@@ -1,0 +1,21 @@
+{{ ansible_managed | comment }}
+
+description "Prometheus Planet Exporter"
+author "williamchanrico@gmail.com"
+
+start on startup
+stop on runlevel [016]
+
+respawn
+
+limit rss 256000000 512000000
+limit nofile 8192 8192
+
+script
+	/usr/bin/planet-exporter \
+		-listen-address 0.0.0.0:11910 \
+		-log-level info \
+		-log-disable-colors \
+		-task-darkstat-enabled={{ planet_exporter_task.darkstat.enabled | default('false') }} -task-darkstat-addr {{ planet_exporter_task.darkstat.darkstat_addr }} \
+		-task-inventory-enabled={{ planet_exporter_task.inventory.enabled | default('false') }} -task-inventory-addr {{ planet_exporter_task.inventory.inventory_addr }}
+end script

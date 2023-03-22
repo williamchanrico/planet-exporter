@@ -57,6 +57,7 @@
   * [Planet Federator](#planet-federator)
     + [Example InfluxQL](#example-influxql)
   * [Planet Federator InfluxDB to BQ](#planet-federator-influxdb-to-bigquery)
+- [Ansible Role](#ansible-role)
 - [Go Version](#go-version)
 - [Contributing](#contributing)
 - [License](#license)
@@ -354,6 +355,15 @@ $ planet-federator \
 This tool helps query and aggregate the Planet Federator data further into 2 categories: (1) Traffic Bandwidth data & (2) Dependency list data, for every services, stored in BigQuery tables.
 
 Read more in [cmd/planet-federator-influxdb-to-bq](./cmd/planet-federator-influxdb-to-bq)
+
+# Ansible Role
+
+Find the sample Ansible Roles in [./setup/ansible-roles](./setup/ansible-roles) to help setup Planet Exporter or Planet Federator.
+
+Generally, planet_exporter is installed as a sidecar agent on most (if not all) servers,
+while planet_federator is installed on an influxdb server.
+
+Remember that for planet-federator-influxdb-to-bq to work, provide the instance's Service Account a write access to target BQ Tables (i.e. roles/bigquery.dataEditor).
 
 # Go Version
 

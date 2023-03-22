@@ -1,0 +1,20 @@
+{{ ansible_managed | comment }}
+
+description "Prometheus Planet Federator"
+author "williamchanrico@gmail.com"
+
+start on startup
+stop on runlevel [016]
+
+respawn
+
+limit nofile 16384 16384
+
+script
+	/usr/bin/planet-federator \
+		-log-level info \
+		-log-disable-colors \
+		-influxdb-addr={{ planet_federator_influxdbv1_addr }} \
+		-influxdb-token={{ planet_federator_influxdbv1_username }}:{{ planet_federator_influxdbv1_password | default('') }} \
+		-prometheus-addr {{ planet_federator_config.prometheus.prometheus_addr }}
+end script

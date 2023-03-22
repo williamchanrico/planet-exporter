@@ -1,0 +1,9 @@
+---
+planet_exporter_version: v0.4.2
+planet_exporter_task:
+  darkstat:
+    enabled: true
+    darkstat_addr: 'http://127.0.0.1:11560/metrics'
+  inventory:
+    enabled: true
+    inventory_addr: 'https://s3-ap-southeast-1.amazonaws.com/REPLACE_ME/inventory_hosts.json'

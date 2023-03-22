@@ -1,0 +1,60 @@
+- name: Create opt directory for prometheus
+  become: yes
+  file:
+    path: /opt/planet-exporter
+    state: directory
+
+- name: Download planet exporter
+  become: yes
+  get_url:
+    url: https://github.com/williamchanrico/planet-exporter/releases/download/{{ planet_exporter_version }}/planet-exporter_{{ planet_exporter_version }}_linux_amd64.tar.gz
+    dest: /opt/planet-exporter
+
+- name: Unarchive planet exporter
+  become: yes
+  unarchive:
+    remote_src: yes
+    src: /opt/planet-exporter/planet-exporter_{{ planet_exporter_version }}_linux_amd64.tar.gz
+    dest: /opt/planet-exporter
+    owner: root
+    group: root
+  notify: Restart planet exporter
+
+- name: Create symlink to planet exporter
+  become: yes
+  file:
+    src: /opt/planet-exporter/planet-exporter
+    path: /usr/bin/planet-exporter
+    state: link
+
+- block:
+    - name: Setup planet-exporter.conf service file
+      template:
+        src: planet-exporter.conf.j2
+        dest: /etc/init/planet-exporter.conf
+      notify: Restart planet exporter
+
+    - name: Restart planet-exporter service
+      service:
+        name: planet-exporter
+        state: started
+        enabled: yes
+  when: ansible_service_mgr == 'upstart'
+
+- block:
+    - name: Setup planet-exporter.service systemd file
+      template:
+        src: planet-exporter.service.j2
+        dest: /etc/systemd/system/planet-exporter.service
+      notify: Restart planet exporter systemd
+
+    - name: Configure systemd to use service
+      become: yes
+      systemd:
+        name: planet-exporter.service
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      tags:
+        - planet_exporter_start
+  when: ansible_service_mgr == 'systemd'
