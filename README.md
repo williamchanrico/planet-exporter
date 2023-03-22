@@ -57,6 +57,7 @@
   * [Planet Federator](#planet-federator)
     + [Example InfluxQL](#example-influxql)
   * [Planet Federator InfluxDB to BQ](#planet-federator-influxdb-to-bigquery)
+- [Ansible Role](#ansible-role)
 - [Go Version](#go-version)
 - [Contributing](#contributing)
 - [License](#license)
