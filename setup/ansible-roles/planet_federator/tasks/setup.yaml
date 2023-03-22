@@ -1,0 +1,95 @@
+---
+- name: Create opt directory for prometheus
+  become: true
+  file:
+    path: /opt/planet-federator
+    state: directory
+    mode: '0755'
+
+- name: Download planet federator
+  become: true
+  get_url:
+    url: https://github.com/williamchanrico/planet-exporter/releases/download/{{ planet_federator_version }}/planet-exporter_{{ planet_federator_version }}_linux_amd64.tar.gz
+    dest: /opt/planet-federator
+    checksum: sha256:http://github.com/williamchanrico/planet-exporter/releases/download/{{ planet_federator_version }}/planet-exporter_{{ planet_federator_version }}_checksums.txt
+    mode: '0755'
+
+- name: Unarchive planet federator
+  become: true
+  unarchive:
+    remote_src: true
+    src: /opt/planet-federator/planet-exporter_{{ planet_federator_version }}_linux_amd64.tar.gz
+    dest: /opt/planet-federator
+  notify: Restart planet federator
+
+- name: Create symlink to planet federator
+  become: true
+  file:
+    src: /opt/planet-federator/planet-federator
+    path: /usr/bin/planet-federator
+    state: link
+    mode: '0755'
+
+- name: Create symlink to planet federator influxdb to bq
+  become: true
+  file:
+    src: /opt/planet-federator/planet-federator-influxdb-to-bq
+    path: /usr/bin/planet-federator-influxdb-to-bq
+    state: link
+    mode: '0755'
+
+- name: Install Upstart service for planet-federator
+  when: ansible_service_mgr == 'upstart'
+  block:
+    - name: Setup planet-federator.conf service file
+      template:
+        src: planet-federator.conf.j2
+        dest: /etc/init/planet-federator.conf
+        mode: '0755'
+      notify: Restart planet federator
+
+    - name: Restart planet-federator service
+      service:
+        name: planet-federator
+        state: started
+        enabled: true
+
+- name: Install Systemd service for planet-federator
+  when: ansible_service_mgr == 'systemd'
+  block:
+    - name: Setup planet-federator.service systemd file
+      template:
+        src: planet-federator.service.j2
+        dest: /etc/systemd/system/planet-federator.service
+        mode: '0755'
+      notify: Restart planet federator systemd
+
+    - name: Configure systemd to use service
+      become: true
+      systemd:
+        name: planet-federator.service
+        state: started
+        enabled: true
+        daemon_reload: true
+      tags:
+        - planet_federator_start
+
+- name: Install Systemd service for planet-federator-influxdb-to-bq
+  when: ansible_service_mgr == 'systemd' and planet_federator_influxdb_to_bq_enabled | bool
+  block:
+    - name: Setup planet-federator-influxdb-to-bq.service systemd file
+      template:
+        src: planet-federator-influxdb-to-bq.service.j2
+        dest: /etc/systemd/system/planet-federator-influxdb-to-bq.service
+        mode: '0755'
+      notify: Restart planet federator influxdb to bq systemd
+
+    - name: Configure systemd to use service
+      become: true
+      systemd:
+        name: planet-federator-influxdb-to-bq.service
+        state: started
+        enabled: true
+        daemon_reload: true
+      tags:
+        - planet_federator_influxdb_to_bq_start

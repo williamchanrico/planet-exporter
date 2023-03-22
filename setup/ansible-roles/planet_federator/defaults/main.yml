@@ -1,0 +1,17 @@
+---
+planet_federator_version: v0.4.2
+planet_federator_config:
+  prometheus:
+    prometheus_addr: 'http://127.0.0.1:9090'
+
+planet_federator_influxdbv1_addr: 'http://127.0.0.1:8086'
+planet_federator_influxdbv1_database: 'mothership'
+planet_federator_influxdbv1_username: 'planet-federator'
+planet_federator_influxdbv1_password: ''
+
+# Enable influxdb to bq
+planet_federator_influxdb_to_bq_enabled: false
+planet_federator_bq_project_id: ''
+planet_federator_bq_dataset_id: ''
+planet_federator_bq_traffic_table_id: ''
+planet_federator_bq_dependency_table_id: ''

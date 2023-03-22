@@ -1,0 +1,17 @@
+---
+- name: Restart planet federator
+  service:
+    name: planet-federator
+    state: restarted
+
+- name: Restart planet federator systemd
+  systemd:
+    name: planet-federator
+    state: restarted
+    daemon_reload: true
+
+- name: Restart planet federator influxdb to bq systemd
+  systemd:
+    name: planet-federator-influxdb-to-bq
+    state: restarted
+    daemon_reload: true

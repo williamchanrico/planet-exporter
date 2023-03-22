@@ -1,0 +1,24 @@
+{{ ansible_managed | comment }}
+
+[Unit]
+Description=Planet Exporter
+After=network-online.target
+
+[Service]
+User=root
+ExecStart=/usr/bin/planet-exporter \
+	-listen-address 0.0.0.0:11910 \
+	-log-level info \
+	-log-disable-colors \
+	-log-disable-timestamp \
+	-task-darkstat-enabled={{ planet_exporter_task.darkstat.enabled | default('false') }} -task-darkstat-addr {{ planet_exporter_task.darkstat.darkstat_addr }} \
+	-task-inventory-enabled={{ planet_exporter_task.inventory.enabled | default('false') }} -task-inventory-addr {{ planet_exporter_task.inventory.inventory_addr }}
+LimitNOFILE=8192
+CPUQuota=20%
+MemoryHigh=256M
+MemoryMax=512M
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

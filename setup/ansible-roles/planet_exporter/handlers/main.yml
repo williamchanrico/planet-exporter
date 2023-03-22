@@ -1,0 +1,11 @@
+---
+- name: Restart planet exporter
+  service:
+    name: planet-exporter
+    state: restarted
+
+- name: Restart planet exporter systemd
+  systemd:
+    name: planet-exporter
+    state: restarted
+    daemon_reload: yes

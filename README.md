@@ -355,6 +355,15 @@ This tool helps query and aggregate the Planet Federator data further into 2 cat
 
 Read more in [cmd/planet-federator-influxdb-to-bq](./cmd/planet-federator-influxdb-to-bq)
 
+# Ansible Role
+
+Find the sample Ansible Roles in [./setup/ansible-roles](./setup/ansible-roles) to help setup Planet Exporter or Planet Federator.
+
+Generally, planet_exporter is installed as a sidecar agent on most (if not all) servers,
+while planet_federator is installed on an influxdb server.
+
+Remember that for planet-federator-influxdb-to-bq to work, provide the instance's Service Account a write access to target BQ Tables (i.e. roles/bigquery.dataEditor).
+
 # Go Version
 
 ```

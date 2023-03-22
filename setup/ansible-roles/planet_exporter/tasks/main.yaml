@@ -1,0 +1,9 @@
+---
+- import_tasks: setup.yaml
+  tags:
+    - planet_exporter
+
+- import_tasks: uninstall.yaml
+  tags:
+    - planet_exporter_uninstall
+    - never
