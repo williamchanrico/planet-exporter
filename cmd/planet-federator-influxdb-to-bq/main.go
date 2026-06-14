@@ -50,7 +50,12 @@ func main() {
 
 	// Main
 	flag.StringVar(&config.CronJobScheduleTrafficJob, "cron-job-schedule-traffic", "30 0 * * * *", "Cron jobs schedule (Quartz: s m h dom mo dow y) to process federator traffic data")
-	flag.StringVar(&config.CronJobScheduleDependencyJob, "cron-job-schedule-dependency", "30 0 11 * * *", "Cron jobs schedule (Quartz: s m h dom mo dow y) to process federator dependency data")
+	flag.StringVar(
+		&config.CronJobScheduleDependencyJob,
+		"cron-job-schedule-dependency",
+		"30 0 11 * * *",
+		"Cron jobs schedule (Quartz: s m h dom mo dow y) to process federator dependency data",
+	)
 	flag.IntVar(&config.CronJobTimeoutSecond, "cron-job-timeout-second", defaultCronJobTimeoutSecond, "Timeout per federator job in second")
 	flag.StringVar(&cronJobTimeOffsetDuration, "cron-job-time-offset", "0s", "Cron jobs time offset. (e.g. '-1h5m' to query data from 1 hour 5 minutes ago)")
 	flag.StringVar(&config.LogLevel, "log-level", "info", "Log level")
@@ -74,7 +79,7 @@ func main() {
 	flag.Parse()
 
 	if showVersionAndExit {
-		fmt.Println("planet-federator-influxdb-to-bq", version) // nolint:forbidigo
+		fmt.Println("planet-federator-influxdb-to-bq", version) //nolint:forbidigo
 		os.Exit(0)
 	}
 
@@ -109,21 +114,30 @@ func main() {
 		Timeout:  time.Second * time.Duration(config.CronJobTimeoutSecond),
 	})
 	if err != nil {
-		fmt.Println("Error creating InfluxDB Client: ", err.Error())
+		log.Fatalf("Error creating InfluxDB Client: %v", err)
 	}
-	defer influxdbClient.Close()
 
 	log.Info("Initialize Bigquery client")
 	bqClient, err := bigquery.NewClient(ctx, config.BigqueryProjectID)
 	if err != nil {
+		_ = influxdbClient.Close()
 		log.Fatalf("Error initializing BigQuery client for GCP Project %v: %v", config.BigqueryProjectID, err)
 	}
+
+	defer func() {
+		if err := influxdbClient.Close(); err != nil {
+			log.Errorf("Error closing InfluxDB client: %v", err)
+		}
+		if err := bqClient.Close(); err != nil {
+			log.Errorf("Error closing BigQuery client: %v", err)
+		}
+	}()
 
 	log.Info("Initialize main service")
 	svc := internal.New(config, influxdbClient, bqClient)
 	if err := svc.Run(ctx); err != nil {
 		log.Errorf("Main service exit with error: %v", err)
-		os.Exit(1) // nolint:gocritic
+		os.Exit(1) //nolint:gocritic
 	}
 
 	log.Info("Main service exit successfully")

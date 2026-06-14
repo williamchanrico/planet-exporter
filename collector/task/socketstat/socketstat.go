@@ -83,8 +83,7 @@ func Get() ([]Process, []Connections, []Connections) {
 }
 
 // Collect will collect fill singleton with latest data.
-// nolint:cyclop
-func Collect(ctx context.Context) error {
+func Collect(ctx context.Context) error { //nolint:cyclop
 	if !singleton.enabled {
 		return nil
 	}
@@ -102,7 +101,7 @@ func Collect(ctx context.Context) error {
 	serverProcesses, listeningPortsConns := parseProcessesAndListenPortsConns(serverConnectionStat)
 
 	// Find current IP to replace loop-back address
-	currentIP, err := network.LocalIP()
+	currentIP, err := network.LocalIP(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting local IP address: %w", err)
 	}

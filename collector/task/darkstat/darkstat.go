@@ -57,7 +57,7 @@ func init() {
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
-		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, // nolint:gosec
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 
@@ -138,7 +138,7 @@ func Collect(ctx context.Context) error {
 	}
 
 	// Extract relevant data out of host_bytes_total
-	hosts, err := toHostMetrics(darkstatHostBytesTotalMetric)
+	hosts, err := toHostMetrics(ctxCollect, darkstatHostBytesTotalMetric)
 	if err != nil {
 		return err
 	}
@@ -154,12 +154,12 @@ func Collect(ctx context.Context) error {
 }
 
 // toHostMetrics converts darkstatHostBytesTotal metrics into planet explorer prometheus metrics.
-func toHostMetrics(darkstatHostBytesTotal *prom2json.Family) ([]Metric, error) {
+func toHostMetrics(ctx context.Context, darkstatHostBytesTotal *prom2json.Family) ([]Metric, error) {
 	hosts := []Metric{}
 
 	inventoryHosts := inventory.Get()
 
-	localAddr, err := network.LocalIP()
+	localAddr, err := network.LocalIP(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting local IP address: %w", err)
 	}

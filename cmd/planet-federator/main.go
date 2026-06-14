@@ -75,7 +75,7 @@ func main() {
 	flag.Parse()
 
 	if showVersionAndExit {
-		fmt.Println("planet-federator", version) // nolint:forbidigo
+		fmt.Println("planet-federator", version) //nolint:forbidigo
 		os.Exit(0)
 	}
 
@@ -131,7 +131,7 @@ func main() {
 	svc := internal.New(config, federatorSvc, prometheusSvc)
 	if err := svc.Run(ctx); err != nil {
 		log.Errorf("Main service exit with error: %v", err)
-		os.Exit(1) // nolint:gocritic
+		os.Exit(1) //nolint:gocritic
 	}
 
 	log.Info("Main service exit successfully")

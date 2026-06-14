@@ -16,6 +16,7 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"cloud.google.com/go/bigquery"
@@ -48,15 +49,6 @@ func newBackend(config Config, bqClient *bigquery.Client) backend {
 		dependencyTable: dependencyTable,
 	}
 }
-
-const (
-	upstreamDependencyDirection   = "upstream"
-	downstreamDependencyDirection = "downstream"
-
-	ingressTrafficDirection = "ingress"
-	egressTrafficDirection  = "egress"
-	unknownTrafficDirection = "unknown"
-)
 
 // Schema - traffic
 // [
@@ -155,14 +147,14 @@ func (b backend) InsertTrafficBandwidthData(ctx context.Context, data []TrafficT
 	for _, dataChunk := range dataChunks {
 		err := inserter.Put(ctx, dataChunk)
 		if err != nil {
-			if multiErr, ok := err.(bigquery.PutMultiError); ok {
+			var multiErr bigquery.PutMultiError
+			if errors.As(err, &multiErr) {
 				for _, putErr := range multiErr {
-					return fmt.Errorf("failed to insert traffic table, sample row %d, with err: %v", putErr.RowIndex, putErr.Error())
+					return fmt.Errorf("failed to insert traffic table, sample row %d: %s", putErr.RowIndex, putErr.Error())
 				}
-			} else {
-				return fmt.Errorf("failed to insert traffic table, with err: %v", err)
 			}
-			return err
+
+			return fmt.Errorf("failed to insert traffic table: %w", err)
 		}
 
 	}
@@ -284,14 +276,14 @@ func (b backend) InsertDependencyData(ctx context.Context, data []DependencyData
 	for _, dataChunk := range dataChunks {
 		err := inserter.Put(ctx, dataChunk)
 		if err != nil {
-			if multiErr, ok := err.(bigquery.PutMultiError); ok {
+			var multiErr bigquery.PutMultiError
+			if errors.As(err, &multiErr) {
 				for _, putErr := range multiErr {
-					return fmt.Errorf("failed to insert multiple rows to the dependency table, sample row %d, with err: %v", putErr.RowIndex, putErr.Error())
+					return fmt.Errorf("failed to insert dependency table, sample row %d: %s", putErr.RowIndex, putErr.Error())
 				}
-			} else {
-				return fmt.Errorf("failed to insert dependency table, with err: %v", err)
 			}
-			return err
+
+			return fmt.Errorf("failed to insert dependency table: %w", err)
 		}
 	}
 

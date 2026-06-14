@@ -113,9 +113,9 @@ func ServerConnections(ctx context.Context) (ServerConnectionStat, error) {
 var ErrLocalIPNotFound = fmt.Errorf("failed to retrieve local IP address")
 
 // LocalIP returns default local IP address
-// Note the "udp" protocol. The net.Dial() call won't actually establish any connection.
-func LocalIP() (net.IP, error) {
-	conn, err := net.Dial("udp", "8.8.8.8:53")
+// Note the "udp" protocol. The dial call won't actually establish any connection.
+func LocalIP(ctx context.Context) (net.IP, error) {
+	conn, err := (&net.Dialer{}).DialContext(ctx, "udp", "8.8.8.8:53")
 	if err != nil {
 		return nil, fmt.Errorf("error creating UDP dial connection: %w", err)
 	}

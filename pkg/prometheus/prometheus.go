@@ -47,7 +47,7 @@ func New(httpTransport *http.Transport) *Client {
 			MaxIdleConns:          100,
 			IdleConnTimeout:       90 * time.Second,
 			TLSHandshakeTimeout:   10 * time.Second,
-			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, // nolint:gosec
+			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 			ExpectContinueTimeout: 1 * time.Second,
 		}
 	}

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
@@ -65,7 +64,7 @@ func parseHosts(format string, data io.Reader) ([]Host, error) {
 
 		// Because we only expect a single JSON array object, we discard unexpected additional data.
 		if decoder.More() {
-			bytesCopied, _ := io.Copy(ioutil.Discard, data)
+			bytesCopied, _ := io.Copy(io.Discard, data)
 			log.Warnf("Unexpected remaining data (%v Bytes) while parsing inventory hosts", bytesCopied)
 		}
 

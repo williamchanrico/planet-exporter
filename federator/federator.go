@@ -36,8 +36,9 @@ type TrafficBandwidth struct {
 
 // UpstreamService represents a target upstream service dependency of a local service process
 // e.g. LocalHostgroup testapp depends on UpstreamHostgroup abc, on abc's port 9000 via TCP protocol.
-//      LocalHostgroup -> UpstreamHostgroup:UpstreamPort
-//      testapp        -> abc:9000 (upstream)
+//
+//	LocalHostgroup -> UpstreamHostgroup:UpstreamPort
+//	testapp        -> abc:9000 (upstream)
 type UpstreamService struct {
 	LocalHostgroup    string
 	LocalAddress      string
@@ -50,8 +51,9 @@ type UpstreamService struct {
 
 // DownstreamService represents a target downstream service that depends on local service process
 // e.g. LocalHostgroup testapp has a dependency DownstreamHostgroup abc, on testapp's port 80 via TCP protocol.
-//      LocalHostgroup:LocalPort <- DownstreamHostgroup
-//      testapp:80               <- abc (downstream)
+//
+//	LocalHostgroup:LocalPort <- DownstreamHostgroup
+//	testapp:80               <- abc (downstream)
 type DownstreamService struct {
 	LocalHostgroup      string
 	LocalAddress        string
