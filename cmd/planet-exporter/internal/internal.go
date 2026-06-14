@@ -39,7 +39,7 @@ import (
 )
 
 // Config contains main service config options.
-type Config struct { // nolint:maligned
+type Config struct {
 	// Main config
 	ListenAddress       string
 	LogLevel            string
@@ -114,7 +114,7 @@ func (s Service) Run(ctx context.Context) error {
 	})
 	handler.Handle("/metrics", promhttp.HandlerFor(
 		prometheus.Gatherers{promRegistry},
-		promhttp.HandlerOpts{ // nolint:exhaustivestruct
+		promhttp.HandlerOpts{
 			ErrorHandling: promhttp.ContinueOnError,
 		},
 	))

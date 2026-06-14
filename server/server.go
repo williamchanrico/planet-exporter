@@ -37,7 +37,7 @@ func New(handler http.Handler) *Server {
 	)
 
 	return &Server{
-		server: &http.Server{ // nolint:exhaustivestruct
+		server: &http.Server{
 			ReadTimeout:  readTimeoutSeconds * time.Second,
 			WriteTimeout: writeTimeoutSeconds * time.Second,
 			Handler:      handler,

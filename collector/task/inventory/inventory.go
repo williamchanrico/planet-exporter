@@ -68,7 +68,7 @@ func init() {
 			ipAddresses:          make(map[string]Host),
 			networkCIDRAddresses: []networkHost{},
 		},
-		httpClient: &http.Client{ // nolint:exhaustivestruct
+		httpClient: &http.Client{
 			Timeout: collectTimeout,
 		},
 		inventoryFormat: fmtArrayJSON,
