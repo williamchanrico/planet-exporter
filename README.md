@@ -367,12 +367,12 @@ Remember that for planet-federator-influxdb-to-bq to work, provide the instance'
 
 # Go Version
 
+Requires Go 1.26 or newer (see `go.mod`).
+
 ```
 $ go version
-go version go1.20 linux/amd64
+go version go1.26.4 linux/amd64
 ```
-
-> Older Go versions should work fine.
 
 # Contributing
 
