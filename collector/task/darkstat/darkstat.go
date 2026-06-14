@@ -48,8 +48,8 @@ var (
 )
 
 func init() {
-	httpTransport := &http.Transport{ // nolint:exhaustivestruct
-		DialContext: (&net.Dialer{ // nolint:exhaustivestruct
+	httpTransport := &http.Transport{
+		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
@@ -57,7 +57,7 @@ func init() {
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
-		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, // nolint:gosec,exhaustivestruct
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, // nolint:gosec
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 

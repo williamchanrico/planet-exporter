@@ -311,7 +311,7 @@ func TestInventory_GetHost(t *testing.T) {
 				networkCIDRAddresses: []networkHost{},
 			},
 			args:  args{address: "123.123.123.123"},
-			want1: Host{}, // nolint:exhaustivestruct
+			want1: Host{},
 			want2: false,
 		},
 	}

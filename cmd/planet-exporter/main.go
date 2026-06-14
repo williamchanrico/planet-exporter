@@ -62,7 +62,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	log.SetFormatter(&log.TextFormatter{ // nolint:exhaustivestruct
+	log.SetFormatter(&log.TextFormatter{
 		DisableColors:    config.LogDisableColors,
 		DisableTimestamp: config.LogDisableTimestamp,
 		FullTimestamp:    true,

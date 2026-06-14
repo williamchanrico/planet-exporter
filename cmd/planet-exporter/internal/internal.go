@@ -33,13 +33,13 @@ import (
 	"planet-exporter/server"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/version"
 	log "github.com/sirupsen/logrus"
 )
 
 // Config contains main service config options.
-type Config struct { // nolint:maligned
+type Config struct {
 	// Main config
 	ListenAddress       string
 	LogLevel            string
@@ -114,7 +114,7 @@ func (s Service) Run(ctx context.Context) error {
 	})
 	handler.Handle("/metrics", promhttp.HandlerFor(
 		prometheus.Gatherers{promRegistry},
-		promhttp.HandlerOpts{ // nolint:exhaustivestruct
+		promhttp.HandlerOpts{
 			ErrorHandling: promhttp.ContinueOnError,
 		},
 	))

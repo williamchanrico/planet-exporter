@@ -83,7 +83,7 @@ func main() {
 		log.Fatalf("Error parsing cron-job-time-offset-minute: %v", err)
 	}
 
-	log.SetFormatter(&log.TextFormatter{ // nolint:exhaustivestruct
+	log.SetFormatter(&log.TextFormatter{
 		DisableColors:    config.LogDisableColors,
 		DisableTimestamp: config.LogDisableTimestamp,
 		FullTimestamp:    true,

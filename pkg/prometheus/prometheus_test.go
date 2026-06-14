@@ -80,7 +80,7 @@ request_duration_sum 22.978489699999997
 		{
 			name: "Scrape multiple Prometheus metrics",
 			fields: fields{
-				&http.Transport{}, // nolint:exhaustivestruct
+				&http.Transport{},
 			},
 			args: args{
 				ctx: context.Background(),
