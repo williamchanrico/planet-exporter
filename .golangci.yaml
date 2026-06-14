@@ -8,6 +8,8 @@ linters:
   enable:
     - gomodguard_v2
   disable:
+    - depguard
+    - exhaustruct
     - funlen
     - gochecknoglobals
     - gochecknoinits
@@ -17,6 +19,7 @@ linters:
     - paralleltest
     - testpackage
     - wsl
+    - wsl_v5
   settings:
     lll:
       line-length: 180
