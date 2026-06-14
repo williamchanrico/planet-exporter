@@ -58,7 +58,7 @@ func main() {
 	flag.Parse()
 
 	if showVersionAndExit {
-		fmt.Println("planet-exporter", version) // nolint:forbidigo
+		fmt.Println("planet-exporter", version) //nolint:forbidigo
 		os.Exit(0)
 	}
 

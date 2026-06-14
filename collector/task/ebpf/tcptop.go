@@ -68,7 +68,7 @@ func init() {
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
-		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, // nolint:gosec
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 
@@ -117,8 +117,7 @@ var (
 )
 
 // Collect will process ebpf metrics locally and fill singleton with latest data.
-// nolint:cyclop
-func Collect(ctx context.Context) error {
+func Collect(ctx context.Context) error { //nolint:cyclop
 	if !singleton.enabled {
 		return nil
 	}
@@ -171,20 +170,20 @@ func Collect(ctx context.Context) error {
 		return ErrMetricsNotFound
 	}
 
-	sendHostBytesIPV4, err := toHostMetrics(sendBytesMetricIPV4, egress)
+	sendHostBytesIPV4, err := toHostMetrics(ctxCollect, sendBytesMetricIPV4, egress)
 	if err != nil {
 		log.Errorf("Conversion to host metric failed for %v, err: %v", sendBytesIPV4, err)
 	}
-	recvHostBytesIPV4, err := toHostMetrics(recvBytesMetricIPV4, ingress)
+	recvHostBytesIPV4, err := toHostMetrics(ctxCollect, recvBytesMetricIPV4, ingress)
 	if err != nil {
 		log.Errorf("Conversion to host metric failed for %v, err: %v", recvBytesIPV4, err)
 	}
 
-	sendHostBytesIPV6, err := toHostMetrics(sendBytesMetricIPV6, egress)
+	sendHostBytesIPV6, err := toHostMetrics(ctxCollect, sendBytesMetricIPV6, egress)
 	if err != nil {
 		log.Errorf("Conversion to host metric failed for %v, err: %v", sendBytesIPv6, err)
 	}
-	recvHostBytesIPV6, err := toHostMetrics(recvBytesMetricIPV6, ingress)
+	recvHostBytesIPV6, err := toHostMetrics(ctxCollect, recvBytesMetricIPV6, ingress)
 	if err != nil {
 		log.Errorf("Conversion to host metric failed for %v, err: %v", recvBytesIPv6, err)
 	}
@@ -201,11 +200,11 @@ func Collect(ctx context.Context) error {
 }
 
 // toHostMetrics converts ebpf metrics into planet explorer prometheus metrics.
-func toHostMetrics(bytesMetric *prom2json.Family, direction string) ([]Metric, error) {
+func toHostMetrics(ctx context.Context, bytesMetric *prom2json.Family, direction string) ([]Metric, error) {
 	hosts := []Metric{}
 	inventoryHosts := inventory.Get()
 
-	currentIP, err := network.LocalIP()
+	currentIP, err := network.LocalIP(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting local IP address: %w", err)
 	}

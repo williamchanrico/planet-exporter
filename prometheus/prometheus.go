@@ -41,9 +41,8 @@ func New(promapiClient api.Client) Service {
 	}
 }
 
-// TODO: Return explicit vector
-// nolint:unused
-func (s Service) query(ctx context.Context, query string, qTime time.Time) (model.Value, error) {
+// TODO: Return explicit vector.
+func (s Service) query(ctx context.Context, query string, qTime time.Time) (model.Value, error) { //nolint:unused
 	const contextTimeoutSeconds = 120
 	ctx, cancel := context.WithTimeout(ctx, contextTimeoutSeconds*time.Second)
 	defer cancel()
@@ -94,8 +93,7 @@ func (s Service) queryRange(ctx context.Context, query string,
 // ErrMetricsLabelNotFound could not find the label in metrics.
 var ErrMetricsLabelNotFound = fmt.Errorf("could not find label in metrics")
 
-// nolint:unused
-func (s Service) getLabelValue(label string, metric model.Metric) (string, error) {
+func (s Service) getLabelValue(label string, metric model.Metric) (string, error) { //nolint:unused
 	labelValue, ok := metric[model.LabelName(label)]
 	if !ok {
 		return "", ErrMetricsLabelNotFound
@@ -107,8 +105,7 @@ func (s Service) getLabelValue(label string, metric model.Metric) (string, error
 // ErrIPAddressMetricsLabelInvalid could not extract the IP address from the metrics.
 var ErrIPAddressMetricsLabelInvalid = fmt.Errorf("could not extract IP from the metrics")
 
-// nolint:unused
-func (s Service) getIPAddressFromLabelValue(label string, metric model.Metric) (string, error) {
+func (s Service) getIPAddressFromLabelValue(label string, metric model.Metric) (string, error) { //nolint:unused
 	lvIPAddr, err := s.getLabelValue(label, metric)
 	if err != nil {
 		return "", err

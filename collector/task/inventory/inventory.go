@@ -223,7 +223,7 @@ func parseInventory(hosts []Host) Inventory {
 // GetLocalInventory returns an inventory entry for current host.
 func GetLocalInventory() Host {
 	var localHost Host
-	currentIP, err := network.LocalIP()
+	currentIP, err := network.LocalIP(context.Background())
 	if err != nil {
 		return localHost
 	}

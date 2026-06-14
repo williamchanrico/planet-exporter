@@ -68,19 +68,23 @@ func (s Service) queryPlanetExporterTrafficBandwidth(ctx context.Context, query 
 	}
 
 	trafficBandwidthData := []PlanetExporterTrafficBandwidth{}
-	for _, matrix := range qrTrafficPeers.(model.Matrix) {
-		localHostgroup, ok := matrix.Metric["local_hostgroup"]
+	matrix, ok := qrTrafficPeers.(model.Matrix)
+	if !ok {
+		return nil, fmt.Errorf("unexpected traffic query result type %T, want model.Matrix", qrTrafficPeers)
+	}
+	for _, sample := range matrix {
+		localHostgroup, ok := sample.Metric["local_hostgroup"]
 		if !ok {
-			log.Warnf("Found empty local_hostgroup: %v", matrix.Metric.String())
+			log.Warnf("Found empty local_hostgroup: %v", sample.Metric.String())
 
 			continue
 		}
-		localDomain := matrix.Metric["local_domain"]
-		remoteHostgroup := matrix.Metric["remote_hostgroup"]
-		remoteDomain := matrix.Metric["remote_domain"]
-		direction := matrix.Metric["direction"]
+		localDomain := sample.Metric["local_domain"]
+		remoteHostgroup := sample.Metric["remote_hostgroup"]
+		remoteDomain := sample.Metric["remote_domain"]
+		direction := sample.Metric["direction"]
 
-		bandwidthBitsPerSecond := s.getMaxValueFromSamplePairs(matrix.Values)
+		bandwidthBitsPerSecond := s.getMaxValueFromSamplePairs(sample.Values)
 
 		trafficBandwidthData = append(trafficBandwidthData, PlanetExporterTrafficBandwidth{
 			Direction:              string(direction),
@@ -171,19 +175,23 @@ func (s Service) queryPlanetExporterDependencyServices(ctx context.Context, quer
 	}
 
 	dependencyServices := []PlanetExporterDependencyService{}
-	for _, matrix := range resultDependencyServices.(model.Matrix) {
-		localHostgroup, ok := matrix.Metric["local_hostgroup"]
+	matrix, ok := resultDependencyServices.(model.Matrix)
+	if !ok {
+		return nil, fmt.Errorf("unexpected dependency query result type %T, want model.Matrix", resultDependencyServices)
+	}
+	for _, sample := range matrix {
+		localHostgroup, ok := sample.Metric["local_hostgroup"]
 		if !ok {
-			log.Warnf("Found empty local_hostgroup: %v", matrix.Metric.String())
+			log.Warnf("Found empty local_hostgroup: %v", sample.Metric.String())
 
 			continue
 		}
-		localAddress := matrix.Metric["local_address"]
-		localProcessName := matrix.Metric["process_name"]
-		remotePort := matrix.Metric["port"]
-		remoteHostgroup := matrix.Metric["remote_hostgroup"]
-		remoteAddress := matrix.Metric["remote_address"]
-		protocol := matrix.Metric["protocol"]
+		localAddress := sample.Metric["local_address"]
+		localProcessName := sample.Metric["process_name"]
+		remotePort := sample.Metric["port"]
+		remoteHostgroup := sample.Metric["remote_hostgroup"]
+		remoteAddress := sample.Metric["remote_address"]
+		protocol := sample.Metric["protocol"]
 
 		dependencyServices = append(dependencyServices, PlanetExporterDependencyService{
 			LocalHostgroup:   string(localHostgroup),

@@ -26,7 +26,7 @@ import (
 )
 
 func TestClient_Scrape(t *testing.T) {
-	// nolint:lll
+	//nolint:lll
 	mockScrapeResponse := `
 # HELP test_metric A metric for unit-test.
 # TYPE test_metric gauge
@@ -58,8 +58,8 @@ request_duration_count 3.0
 request_duration_sum 22.978489699999997
 	`
 
-	mockhttpserver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, mockScrapeResponse)
+	mockhttpserver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = fmt.Fprint(w, mockScrapeResponse)
 	}))
 	defer mockhttpserver.Close()
 
@@ -67,7 +67,6 @@ request_duration_sum 22.978489699999997
 		httpTransport *http.Transport
 	}
 	type args struct {
-		ctx context.Context
 		url string
 	}
 	tests := []struct {
@@ -83,7 +82,6 @@ request_duration_sum 22.978489699999997
 				&http.Transport{},
 			},
 			args: args{
-				ctx: context.Background(),
 				url: mockhttpserver.URL,
 			},
 			want: []*prom2json.Family{
@@ -108,7 +106,7 @@ request_duration_sum 22.978489699999997
 					Type: "GAUGE",
 					Metrics: []interface{}{
 						prom2json.Metric{
-							// nolint:lll
+							//nolint:lll
 							Labels: map[string]string{
 								"local_address": "debugapp.service.consul", "local_hostgroup": "debugapp", "port": "80", "process_name": "debugapp", "protocol": "tcp", "remote_address": "xyz.service.consul", "remote_hostgroup": "xyz",
 							},
@@ -116,7 +114,7 @@ request_duration_sum 22.978489699999997
 							Value:       "1",
 						},
 						prom2json.Metric{
-							// nolint:lll
+							//nolint:lll
 							Labels: map[string]string{
 								"local_address": "debugapp.service.consul", "local_hostgroup": "debugapp", "port": "8500", "process_name": "consul-template", "protocol": "tcp", "remote_address": "127.0.0.1", "remote_hostgroup": "localhost",
 							},
@@ -164,7 +162,7 @@ request_duration_sum 22.978489699999997
 	for _, testcase := range tests {
 		t.Run(testcase.name, func(t *testing.T) {
 			c := New(testcase.fields.httpTransport)
-			got, err := c.Scrape(testcase.args.ctx, testcase.args.url)
+			got, err := c.Scrape(context.Background(), testcase.args.url)
 			if (err != nil) != testcase.wantErr {
 				t.Errorf("Client.Scrape() error = %v, wantErr %v", err, testcase.wantErr)
 

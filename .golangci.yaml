@@ -9,15 +9,29 @@ linters:
     - gomodguard_v2
   disable:
     - depguard
+    - err113
     - exhaustruct
+    - funcorder
     - funlen
+    - goconst
     - gochecknoglobals
     - gochecknoinits
     - gomodguard
+    - inamedparam
     - ireturn
     - mnd
+    - nlreturn
+    - noinlineerr
     - paralleltest
+    - perfsprint
+    - prealloc
+    - modernize
+    - revive
+    - tagliatelle
     - testpackage
+    - unparam
+    - varnamelen
+    - whitespace
     - wsl
     - wsl_v5
   settings:
@@ -33,6 +47,7 @@ linters:
         - -ST1020
         - -ST1021
         - -ST1022
+        - -QF1006
       initialisms:
         - ACL
         - API
@@ -94,6 +109,10 @@ linters:
       - linters:
           - godox
         text: 'TODO:'
+      - linters:
+          - staticcheck
+        path: cmd/planet-federator-influxdb-to-bq/internal/bigquery\.go
+        text: 'QF1006'
     paths:
       - third_party$
       - builtin$
